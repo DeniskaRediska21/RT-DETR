@@ -1,16 +1,25 @@
 from torch.utils.data import Dataset
+import mlflow
 import glob
 import os
 from torchvision.io import decode_image
 from pathlib import Path
 import numpy as np
+import sys 
+sys.path.append('../')
+sys.path.append('../RT-DETR')
+from model_preprocessing import get_model
+
 
 
 def format_to_coco(image_id, annotations, image_shape):
     formated = []
-    for category, *bbox in annotations:
+    for annotation in annotations:
+        if len(annotation) == 0:
+            continue
         _, h, w = image_shape
-        xmin, ymin, bw, bh = bbox
+        category, xmin, ymin, bw, bh = annotation
+        bbox = [xmin, ymin, bw, bh]
         formated.append(
             {
                 "image_id": image_id,
@@ -57,3 +66,22 @@ class LizaDataset(Dataset):
         result = {k: v[0] for k, v in result.items()}
 
         return result
+
+
+if __name__ == "__main__":
+    mlflow_uri = 'http://localhost:5000'
+    project_name = 'LIZA'
+    model_name = 'LIZA-detector@base'
+    mlflow.set_tracking_uri(mlflow_uri)
+    mlflow.set_experiment(project_name)
+
+
+    DEVICE = 'cuda'
+
+    pipline = get_model(mlflow_uri, project_name, model_name)
+    model, image_processor = pipline.model, pipline.image_processor
+
+    dataset = LizaDataset(os.path.join('..', 'Dataset'), image_processor=image_processor, transforms=None)
+    dataset.__getitem__(0)
+    pass
+    
