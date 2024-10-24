@@ -6,20 +6,28 @@ from transformers import RTDetrForObjectDetection, RTDetrImageProcessor
 from transformers import pipeline
 import mlflow
 import numpy as np
+from model_preprocessing import get_model
 
+mlflow_uri = 'http://localhost:5000'
+project_name = 'LIZA'
+model_name = 'LIZA-detector@base'
+mlflow.set_tracking_uri(mlflow_uri)
+mlflow.set_experiment(project_name)
 
-mlflow.set_tracking_uri('http://localhost:5000')
-mlflow.set_experiment('LIZA')
-
+url = 'http://images.cocodataset.org/val2017/000000039769.jpg' 
+image = Image.open(requests.get(url, stream=True).raw)
 
 DEVICE = 'cuda'
 
-pipline = mlflow.transformers.load_model('models:/LIZA-detector@base') 
+pipline = get_model(mlflow_uri, project_name, model_name)
+# pipline = mlflow.transformers.load_model('models:/LIZA-detector@base') 
+model, image_processor = pipline.model, pipline.image_processor
 
 inputs = image_processor(images=image, return_tensors="pt")
 
 model = model.to(DEVICE)
 inputs = inputs.to(DEVICE)
+
 with torch.no_grad():
     outputs = model(**inputs)
 

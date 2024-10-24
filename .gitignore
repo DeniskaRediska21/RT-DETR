@@ -2,3 +2,5 @@
 mlartifacts
 mlruns
 weights
+models
+__pycache__
