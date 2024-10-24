@@ -25,7 +25,7 @@ def format_to_coco(image_id, annotations, image_shape):
 
 
 class LizaDataset(Dataset):
-    def __init__(self, dataset_path, transforms):
+    def __init__(self, dataset_path, image_processor, transforms):
         self.annotations = glob.glob(os.path.join(dataset_path, '*.txt'))
         self.annotation_ids = [int(Path(annotation).stem) for annotation in self.annotations]
         self.images = glob.glob(os.path.join(dataset_path, '*.jpg'))
@@ -34,6 +34,7 @@ class LizaDataset(Dataset):
         _, self.annotations= np.array(sorted(zip(self.annotation_ids, self.annotations))).T
         _, self.images = np.array(sorted(zip(self.image_ids, self.images))).T
         self.image_ids = sorted(self.image_ids)
+        self.image_processor = image_processor
         # self.image_ids = [int(''.join([ch for ch in name if 47<ord(ch)<58])) for name in self.images]
 
     def __len__(self):
@@ -47,10 +48,12 @@ class LizaDataset(Dataset):
                 annotations[index]= eval(f"[{annotations[index].replace(' ', ',')}]")
 
         formated_annotations = format_to_coco(self.image_ids[idx], annotations, image.shape)
-        return image, formated_annotations
+        # Apply the image processor transformations: resizing, rescaling, normalization
+        result = self.image_processor(
+            images=image, annotations=formated_annotations, return_tensors="pt"
+        )
 
+        # Image processor expands batch dimension, lets squeeze it
+        result = {k: v[0] for k, v in result.items()}
 
-if __name__ == '__main__':
-    dataset = LizaDataset(os.path.join('..', 'Dataset'), None)
-    image, annotation = dataset.__getitem__(0)
-    pass
+        return result
