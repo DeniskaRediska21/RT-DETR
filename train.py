@@ -14,9 +14,7 @@ mlflow.set_experiment('LIZA')
 
 DEVICE = 'cuda'
 
-PATH = Path('weights', 'RT_DETR_HF')
-image_processor = RTDetrImageProcessor.from_pretrained(PATH, local_files_only=True)
-model = RTDetrForObjectDetection.from_pretrained(PATH, local_files_only=True)
+pipline = mlflow.transformers.load_model('models:/LIZA-detector@base') 
 
 inputs = image_processor(images=image, return_tensors="pt")
 
