@@ -153,8 +153,8 @@ training_args = TrainingArguments(
     warmup_steps=300,
     per_device_train_batch_size=8,
     dataloader_num_workers=4,
-    metric_for_best_model="eval_map",
-    greater_is_better=True,
+    # metric_for_best_model="eval_map",
+    # greater_is_better=True,
     load_best_model_at_end=True,
     eval_strategy="epoch",
     save_strategy="epoch",
@@ -170,7 +170,7 @@ trainer = Trainer(
     eval_dataset=validation_dataset,
     tokenizer=image_processor,
     data_collator=collate_fn,
-    compute_metrics=eval_compute_metrics_fn,
+    # compute_metrics=eval_compute_metrics_fn,
 )
 
 trainer.train()

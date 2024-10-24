@@ -4,3 +4,4 @@ mlruns
 weights
 models
 __pycache__
+rtdetr-r50-cppe5-finetune
