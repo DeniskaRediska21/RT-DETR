@@ -31,7 +31,7 @@ signature_DETR = infer_signature(
         model_input={
                     'images' : np.array(image),
                     }, 
-        model_output = {k:np.array(v) for k,v in outputs.items() if not isinstance(v, list)}
+        model_output={k: np.array(v) for k, v in outputs.items() if not isinstance(v, list)}
 )
 
 model_name = 'LIZA-detector'
