@@ -14,7 +14,7 @@ from model_preprocessing import get_model
 
 def split_sliding_window(image, formated_annotation, overlap=0.2, ):
     range_ = 1
-
+ 
     range_ = 15 # comment out if sliding window not impl
     images = [image for _ in range(range_)]
     formated_annotations = [formated_annotation for _ in range(range_)]
