@@ -2,7 +2,7 @@ import torch
 import requests
 from pathlib import Path
 from PIL import Image
-from transformers import RTDetrForObjectDetection, RTDetrImageProcessor
+from transformers import AutoModelForObjectDetection, AutoImageProcessor
 from transformers import pipeline
 import mlflow
 from mlflow.models import infer_signature
@@ -18,8 +18,8 @@ url = 'http://images.cocodataset.org/val2017/000000039769.jpg'
 image = Image.open(requests.get(url, stream=True).raw)
 
 PATH = Path('weights', 'RT_DETR_HF')
-image_processor = RTDetrImageProcessor.from_pretrained(PATH, local_files_only=True)
-model = RTDetrForObjectDetection.from_pretrained(PATH, local_files_only=True, id2label=id2label, label2id=label2id, ignore_mismatched_sizes=True)
+image_processor = AutoImageProcessor.from_pretrained(PATH, local_files_only=True)
+model = AutoModelForObjectDetection.from_pretrained(PATH, local_files_only=True, id2label=id2label, label2id=label2id, ignore_mismatched_sizes=True)
 
 inputs = image_processor(images=image, return_tensors="pt")
 
