@@ -15,8 +15,11 @@ from dataclasses import dataclass
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 import os 
 from transformers.image_transforms import center_to_corners_format
-
-
+from config import (
+    MLFLOW_URI,
+    PROJECT_NAME,
+    MODEL_NAME,
+)
 
 def convert_bbox_yolo_to_pascal(boxes, image_size):
     """
@@ -117,10 +120,9 @@ class MAPEvaluator:
         return metrics
 
 
-
-mlflow_uri = 'http://localhost:5000'
-project_name = 'LIZA'
-model_name = 'LIZA-detector@base'
+mlflow_uri = MLFLOW_URI
+project_name = PROJECT_NAME
+model_name = MODEL_NAME
 mlflow.set_tracking_uri(mlflow_uri)
 mlflow.set_experiment(project_name)
 lengths = [0.7, 0.3]

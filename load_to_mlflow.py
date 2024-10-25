@@ -2,12 +2,16 @@ import torch
 import requests
 from pathlib import Path
 from PIL import Image
-from transformers import AutoModelForObjectDetection, AutoImageProcessor
+from transformers import RTDetrForObjectDetection, RTDetrImageProcessor
 from transformers import pipeline
 import mlflow
 from mlflow.models import infer_signature
 import numpy as np
-
+from config import (
+    MLFLOW_URI,
+    PROJECT_NAME,
+    MODEL_NAME,
+)
 
 categories = ['person']
 id2label = {index: x for index, x in enumerate(categories, start=0)}
@@ -18,8 +22,8 @@ url = 'http://images.cocodataset.org/val2017/000000039769.jpg'
 image = Image.open(requests.get(url, stream=True).raw)
 
 PATH = Path('weights', 'RT_DETR_HF')
-image_processor = AutoImageProcessor.from_pretrained(PATH, local_files_only=True)
-model = AutoModelForObjectDetection.from_pretrained(PATH, local_files_only=True, id2label=id2label, label2id=label2id, ignore_mismatched_sizes=True)
+image_processor = RTDetrImageProcessor.from_pretrained(PATH, local_files_only=True)
+model = RTDetrForObjectDetection.from_pretrained(PATH, local_files_only=True, id2label=id2label, label2id=label2id, ignore_mismatched_sizes=True)
 
 inputs = image_processor(images=image, return_tensors="pt")
 
@@ -28,8 +32,12 @@ inputs = inputs.to(DEVICE)
 with torch.no_grad():
     outputs = model(**inputs)
 
-mlflow.set_tracking_uri('http://localhost:5000')
-mlflow.set_experiment('LIZA')
+mlflow_uri = MLFLOW_URI
+project_name = PROJECT_NAME
+model_name = MODEL_NAME.split('@')[0]
+
+mlflow.set_tracking_uri(mlflow_uri)
+mlflow.set_experiment(project_name)
 
 signature_DETR = infer_signature(
         model_input={
@@ -37,8 +45,6 @@ signature_DETR = infer_signature(
                     }, 
         model_output={k: np.array(v) for k, v in outputs.items() if not isinstance(v, list)}
 )
-
-model_name = 'LIZA-detector'
 
 pipe = pipeline(model = model.cpu(), image_processor=image_processor,device='cpu', task='object-detection')
 
