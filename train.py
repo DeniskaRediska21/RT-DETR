@@ -20,6 +20,9 @@ from config import (
     PROJECT_NAME,
     MODEL_NAME,
     DATASET_PATH,
+    EPOCS,
+    LEARNIG_RATE,
+    BATCH_SIZE,
 )
 
 def convert_bbox_yolo_to_pascal(boxes, image_size):
@@ -151,11 +154,11 @@ eval_compute_metrics_fn = MAPEvaluator(image_processor=image_processor, threshol
 
 training_args = TrainingArguments(
     output_dir="rtdetr-r50-cppe5-finetune",
-    num_train_epochs=10,
+    num_train_epochs=EPOCS,
     max_grad_norm=0.1,
-    learning_rate=5e-5,
+    learning_rate=LEARNIG_RATE,
     warmup_steps=300,
-    per_device_train_batch_size=3,
+    per_device_train_batch_size=BATCH_SIZE,
     dataloader_num_workers=4,
     metric_for_best_model="eval_map",
     greater_is_better=True,

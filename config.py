@@ -19,3 +19,7 @@ DATASET_PATH = os.path.join(
 '02_second_part_DataSet_Human_Rescue',
 'obj',
 )
+
+EPOCS = 10
+LEARNIG_RATE = 5e-5 
+BATCH_SIZE = 5 
