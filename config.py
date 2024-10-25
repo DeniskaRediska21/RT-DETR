@@ -6,7 +6,7 @@ MODEL_NAME = 'LIZA-detector@base'
 # DATASET_PATH = os.path.join('..', 'Dataset')
 
 DATASET_PATH = os.path.join(
-'os.sep',
+os.sep,
 'media',
 'taiga',
 'dfs',
@@ -21,5 +21,5 @@ DATASET_PATH = os.path.join(
 )
 
 EPOCS = 10
-LEARNIG_RATE = 5e-5 
+LEARNIG_RATE = 5e-4 
 BATCH_SIZE = 5 
