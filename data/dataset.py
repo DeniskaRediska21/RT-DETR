@@ -13,8 +13,11 @@ from model_preprocessing import get_model
 
 
 def split_sliding_window(image, formated_annotation, overlap=0.2, ):
-    images = [image for _ in range(15)]
-    formated_annotations = [formated_annotation for _ in range(15)]
+    range_ = 1
+
+    range_ = 15 # comment out if sliding window not impl
+    images = [image for _ in range(range_)]
+    formated_annotations = [formated_annotation for _ in range(range_)]
     return images, formated_annotations
 
 
@@ -53,6 +56,7 @@ class LizaDataset(Dataset):
         self.image_ids = sorted(self.image_ids)
         self.image_processor = image_processor
         self.image_sizes = [[*imagesize.get(image)] for image in self.images]
+        self.backlog = []
 
         repetitions = [int(h/(inference_size * (1 - overlap))) * int(w/(inference_size * (1 - overlap))) for w, h in self.image_sizes]
 
@@ -63,11 +67,10 @@ class LizaDataset(Dataset):
         repeated_annotations = []
         [repeated_annotations.append(annotation) for annotation, reps in zip(self.annotations, repetitions) for _ in range(reps)]
 
-        self.images = repeated_images
-        self.image_ids = repeated_image_ids
-        self.annotations = repeated_annotations
+        self.images = repeated_images # comment out if window not impl
+        self.image_ids = repeated_image_ids # comment out if window not impl
+        self.annotations = repeated_annotations # comment out if window not impl
 
-        self.backlog = []
 
     def __len__(self):
         return len(self.annotations)
@@ -83,11 +86,11 @@ class LizaDataset(Dataset):
 
             formated_annotations = format_to_coco(self.image_ids[idx], annotations, image.shape)
 
-            image, formated_annotations = split_sliding_window(image, formated_annotations, overlap=0.2)
+            images, formated_annotationss = split_sliding_window(image, formated_annotations, overlap=self.overlap)
 
             # Apply the image processor transformations: resizing, rescaling, normalization
 
-            self.backlog = [[img, formated_annotetion] for img, formated_annotetion in zip(image, formated_annotations)]
+            self.backlog = [[img, formated_annotetion] for img, formated_annotetion in zip(images, formated_annotationss)]
 
         image, formated_annotations = self.backlog.pop(0)
         
