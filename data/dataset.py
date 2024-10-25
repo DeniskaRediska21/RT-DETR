@@ -12,9 +12,9 @@ sys.path.append('../RT-DETR')
 from model_preprocessing import get_model
 
 
-def split_sliding_window(image, formated_annotation, overlap=0.2, ):
+def split_sliding_window(image, formated_annotation, inference_size, overlap=0.2):
     range_ = 1
- 
+    _, h, w = image.shape
     range_ = 15 # comment out if sliding window not impl
     images = [image for _ in range(range_)]
     formated_annotations = [formated_annotation for _ in range(range_)]
@@ -86,7 +86,7 @@ class LizaDataset(Dataset):
 
             formated_annotations = format_to_coco(self.image_ids[idx], annotations, image.shape)
 
-            images, formated_annotationss = split_sliding_window(image, formated_annotations, overlap=self.overlap)
+            images, formated_annotationss = split_sliding_window(image, formated_annotations, inference_size=self.inference_size, overlap=self.overlap)
 
             # Apply the image processor transformations: resizing, rescaling, normalization
 
