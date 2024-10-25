@@ -37,7 +37,7 @@ def convert_bbox_yolo_to_pascal(boxes, image_size):
     boxes = center_to_corners_format(boxes)
 
     # convert to absolute coordinates
-    height, width = image_size
+    height, width = image_size[0], image_size[0]
     boxes = boxes * torch.tensor([[width, height, width, height]])
 
     return boxes
@@ -66,7 +66,11 @@ class MAPEvaluator:
         """Collect image sizes across the dataset as list of tensors with shape [batch_size, 2]."""
         image_sizes = []
         for batch in targets:
-            batch_image_sizes = torch.tensor(np.array([x["size"] for x in batch]))
+            tmp = torch.tensor(np.array([x["size"] for x in batch]))
+            batch_image_sizes = []
+            for batch_image_size in tmp:
+                size = batch_image_size if len(batch_image_size) == 2 else [batch_image_size[0], batch_image_size[0]]
+                batch_image_sizes.append(size)
             image_sizes.append(batch_image_sizes)
         return image_sizes
 
@@ -96,6 +100,9 @@ class MAPEvaluator:
 
         predictions, targets = evaluation_results.predictions, evaluation_results.label_ids
 
+        # targets = [[tar for tar in target if len(tar) == 2] for target in targets]
+        # targets = [target for target in targets if len(target) > 0]
+
         image_sizes = self.collect_image_sizes(targets)
         post_processed_targets = self.collect_targets(targets, image_sizes)
         post_processed_predictions = self.collect_predictions(predictions, image_sizes)
@@ -109,11 +116,7 @@ class MAPEvaluator:
         # Replace list of per class metrics with separate metric for each class
         classes = metrics.pop("classes")
         map_per_class = metrics.pop("map_per_class")
-        mar_100_per_class = metrics.pop("mar_100_per_class")
-        for class_id, class_map, class_mar in zip(classes, map_per_class, mar_100_per_class):
-            class_name = id2label[class_id.item()] if id2label is not None else class_id.item()
-            metrics[f"map_{class_name}"] = class_map
-            metrics[f"mar_100_{class_name}"] = class_mar
+        metrics[f"map_person"] = map_per_class
 
         metrics = {k: round(v.item(), 4) for k, v in metrics.items()}
 
@@ -153,10 +156,10 @@ training_args = TrainingArguments(
     max_grad_norm=0.1,
     learning_rate=5e-5,
     warmup_steps=300,
-    per_device_train_batch_size=8,
+    per_device_train_batch_size=3,
     dataloader_num_workers=4,
-    # metric_for_best_model="eval_map",
-    # greater_is_better=True,
+    metric_for_best_model="eval_map",
+    greater_is_better=True,
     load_best_model_at_end=True,
     eval_strategy="epoch",
     save_strategy="epoch",
@@ -172,7 +175,7 @@ trainer = Trainer(
     eval_dataset=validation_dataset,
     tokenizer=image_processor,
     data_collator=collate_fn,
-    # compute_metrics=eval_compute_metrics_fn,
+    compute_metrics=eval_compute_metrics_fn,
 )
 
 trainer.train()
