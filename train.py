@@ -19,6 +19,7 @@ from config import (
     MLFLOW_URI,
     PROJECT_NAME,
     MODEL_NAME,
+    DATASET_PATH,
 )
 
 def convert_bbox_yolo_to_pascal(boxes, image_size):
@@ -131,15 +132,13 @@ mlflow.set_experiment(project_name)
 lengths = [0.7, 0.3]
 
 
-url = 'http://images.cocodataset.org/val2017/000000039769.jpg' 
-image = Image.open(requests.get(url, stream=True).raw)
-
 DEVICE = 'cuda'
 
 pipline = get_model(mlflow_uri, project_name, model_name)
 model, image_processor = pipline.model, pipline.image_processor
 
-dataset = LizaDataset(os.path.join('..', 'Dataset'), image_processor=image_processor, transforms=None)
+dataset_path = DATASET_PATH
+dataset = LizaDataset(dataset_path, image_processor=image_processor, transforms=None)
 train_dataset, validation_dataset = torch.utils.data.random_split(dataset, lengths)
 
 model = model.to(DEVICE)
