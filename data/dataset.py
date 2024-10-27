@@ -74,7 +74,7 @@ def format_to_coco(image_id, annotations, image_shape):
 
 class LizaDataset(Dataset):
 
-    def __init__(self, dataset_path, image_processor, transforms, inference_size=640, overlap=0.2):
+    def __init__(self, dataset_path, image_processor, transforms=None, inference_size=640, overlap=0.2):
         self.inference_size = inference_size
         self.overlap = overlap
         self.annotations = glob.glob(os.path.join(dataset_path, '*.txt'), recursive=True)
@@ -86,6 +86,7 @@ class LizaDataset(Dataset):
         _, self.images = np.array(sorted(zip(self.image_ids, self.images))).T
         self.image_ids = sorted(self.image_ids)
         self.image_processor = image_processor
+        self.transforms = transforms
         self.image_sizes = []
         print('Loading image sizes...')
         for index, image in enumerate(self.images):
@@ -144,6 +145,10 @@ class LizaDataset(Dataset):
             ]
 
         image, formated_annotations = self.backlog.pop(0)
+
+        # Apply the torchvision transforms if provided
+        if self.transforms:
+            image = self.transforms(image)
 
         result = self.image_processor(images=image, annotations=formated_annotations, return_tensors="pt")
         # Image processor expands batch dimension, lets squeeze it
