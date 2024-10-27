@@ -55,7 +55,12 @@ class LizaDataset(Dataset):
         _, self.images = np.array(sorted(zip(self.image_ids, self.images))).T
         self.image_ids = sorted(self.image_ids)
         self.image_processor = image_processor
-        self.image_sizes = [[*imagesize.get(image)] for image in self.images]
+        self.image_sizes = []
+        print('Loading image sizes...')
+        for index, image in enumerate(self.images):
+            if index % 1000 == 0:
+                print(f'{index} / {len(self.images)}', end='\r')
+            self.image_sizes.append([*imagesize.get(image)])
         self.backlog = []
 
         repetitions = [int(h/(inference_size * (1 - overlap))) * int(w/(inference_size * (1 - overlap))) for w, h in self.image_sizes]
