@@ -77,9 +77,9 @@ class LizaDataset(Dataset):
     def __init__(self, dataset_path, image_processor, transforms, inference_size=640, overlap=0.2):
         self.inference_size = inference_size
         self.overlap = overlap
-        self.annotations = glob.glob(os.path.join(dataset_path, '*.txt'))
+        self.annotations = glob.glob(os.path.join(dataset_path, '*.txt'), recursive=True)
         self.annotation_ids = [int(Path(annotation).stem) for annotation in self.annotations]
-        self.images = glob.glob(os.path.join(dataset_path, '*.JPG'))
+        self.images = glob.glob(os.path.join(dataset_path, '*.JPG'), recursive=True)
         self.image_ids = [int(Path(image).stem) for image in self.images]
 
         _, self.annotations = np.array(sorted(zip(self.annotation_ids, self.annotations))).T
