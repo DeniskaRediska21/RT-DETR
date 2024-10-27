@@ -1,29 +1,25 @@
 import torch
-import requests
-from pathlib import Path
-from PIL import Image
-from transformers import RTDetrForObjectDetection, RTDetrImageProcessor
-from transformers import pipeline
+# from transformers import RTDetrForObjectDetection, RTDetrImageProcessor, pipeline
 import mlflow
 import numpy as np
-from model_preprocessing import get_model
+from utils import get_model
 from transformers import TrainingArguments
-from data.dataset import LizaDataset
+from data import LizaDataset
 from transformers import Trainer
-import numpy as np
 from dataclasses import dataclass
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
-import os 
 from transformers.image_transforms import center_to_corners_format
+
 from config import (
     MLFLOW_URI,
     PROJECT_NAME,
     MODEL_NAME,
     DATASET_PATH,
-    EPOCS,
-    LEARNIG_RATE,
+    EPOCHS,
+    LEARNING_RATE,
     BATCH_SIZE,
 )
+
 
 def convert_bbox_yolo_to_pascal(boxes, image_size):
     """
@@ -45,6 +41,7 @@ def convert_bbox_yolo_to_pascal(boxes, image_size):
     boxes = boxes * torch.tensor([[width, height, width, height]])
 
     return boxes
+
 
 def collate_fn(batch):
     data = {}
@@ -93,9 +90,9 @@ class MAPEvaluator:
         for batch, target_sizes in zip(predictions, image_sizes):
             batch_logits, batch_boxes = batch[1], batch[2]
             output = ModelOutput(logits=torch.tensor(batch_logits), pred_boxes=torch.tensor(batch_boxes))
-            post_processed_output = self.image_processor.post_process_object_detection(
-                output, threshold=self.threshold, target_sizes=target_sizes
-            )
+            post_processed_output = self.image_processor.post_process_object_detection(output,
+                                                                                       threshold=self.threshold,
+                                                                                       target_sizes=target_sizes)
             post_processed_predictions.extend(post_processed_output)
         return post_processed_predictions
 
@@ -118,9 +115,9 @@ class MAPEvaluator:
         metrics = evaluator.compute()
 
         # Replace list of per class metrics with separate metric for each class
-        classes = metrics.pop("classes")
+        # classes = metrics.pop("classes")
         map_per_class = metrics.pop("map_per_class")
-        metrics[f"map_person"] = map_per_class
+        metrics["map_person"] = map_per_class
 
         metrics = {k: round(v.item(), 4) for k, v in metrics.items()}
 
@@ -134,11 +131,10 @@ mlflow.set_tracking_uri(mlflow_uri)
 mlflow.set_experiment(project_name)
 lengths = [0.7, 0.3]
 
-
 DEVICE = 'cuda'
 
-pipline = get_model(mlflow_uri, project_name, model_name)
-model, image_processor = pipline.model, pipline.image_processor
+pipeline_ = get_model(mlflow_uri, project_name, model_name)
+model, image_processor = pipeline_.model, pipeline_.image_processor
 
 dataset_path = DATASET_PATH
 dataset = LizaDataset(dataset_path, image_processor=image_processor, transforms=None)
@@ -154,9 +150,9 @@ eval_compute_metrics_fn = MAPEvaluator(image_processor=image_processor, threshol
 
 training_args = TrainingArguments(
     output_dir="rtdetr-r50-cppe5-finetune",
-    num_train_epochs=EPOCS,
+    num_train_epochs=EPOCHS,
     max_grad_norm=0.1,
-    learning_rate=LEARNIG_RATE,
+    learning_rate=LEARNING_RATE,
     warmup_steps=300,
     per_device_train_batch_size=BATCH_SIZE,
     dataloader_num_workers=4,
