@@ -44,7 +44,6 @@ def plot_results(pil_img, scores, labels, boxes):
     plt.show()
 
 if __name__ == '__main__':
-    n_image = 0
     mlflow_uri = MLFLOW_URI
     project_name = PROJECT_NAME
     model_name = MODEL_NAME
@@ -58,18 +57,17 @@ if __name__ == '__main__':
     dataset = LizaDataset(dataset_path, image_processor=image_processor, transforms=get_transforms())
 
     model = model.to(DEVICE)
+    for n_image in range(len(dataset)):
+        inputs = dataset.__getitem__(n_image)
+        image = inputs['pixel_values']
+        with torch.no_grad():
+            outputs = model(image.to(DEVICE).unsqueeze(0))
 
-    inputs = dataset.__getitem__(n_image)
-    image = inputs['pixel_values']
-    inputs = image_processor(image, return_tensors='pt', do_rescale=False).to(DEVICE)
-    with torch.no_grad():
-        outputs = model(**inputs)
-
-    _, width, height = image.size()
-    postprocessed_outputs = image_processor.post_process_object_detection(
-        outputs,
-        target_sizes=[(height, width)],
-        threshold=0.3
-    )
-    results = postprocessed_outputs[0]
-    plot_results(to_pil_image(image), results['scores'].tolist(), results['labels'].tolist(), results['boxes'].tolist())
+        _, width, height = image.size()
+        postprocessed_outputs = image_processor.post_process_object_detection(
+            outputs,
+            target_sizes=[(height, width)],
+            threshold=0.3
+        )
+        results = postprocessed_outputs[0]
+        plot_results(to_pil_image(image), results['scores'].tolist(), results['labels'].tolist(), results['boxes'].tolist())
