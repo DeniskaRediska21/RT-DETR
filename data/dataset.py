@@ -74,7 +74,7 @@ def format_to_coco(image_id, annotations, image_shape):
 
 class LizaDataset(Dataset):
 
-    def __init__(self, dataset_path, image_processor, transforms=None, inference_size=640, overlap=0.2):
+    def __init__(self, dataset_path, image_processor, transforms=None, inference_size=640, overlap=0.2, do_slide=False):
         self.inference_size = inference_size
         self.overlap = overlap
         self.annotations = glob.glob(os.path.join(dataset_path, '*.txt'), recursive=True)
@@ -118,6 +118,7 @@ class LizaDataset(Dataset):
         self.images = repeated_images  # comment out if window not impl
         self.image_ids = repeated_image_ids  # comment out if window not impl
         self.annotations = repeated_annotations  # comment out if window not impl
+        self.do_slide = do_slide
 
     def __len__(self):
         return len(self.annotations)
@@ -133,17 +134,18 @@ class LizaDataset(Dataset):
 
             formated_annotations = format_to_coco(self.image_ids[idx], annotations, image.shape)
 
-            images, formated_annotationss = split_sliding_window(
-                 image,
-                 formated_annotations,
-                 inference_size=self.inference_size,
-                 overlap=self.overlap
-            )
+            if self.do_slide:
+                image, formated_annotations = split_sliding_window(
+                     image,
+                     formated_annotations,
+                     inference_size=self.inference_size,
+                     overlap=self.overlap
+                )
 
             # Apply the image processor transformations: resizing, rescaling, normalization
 
             self.backlog = [
-                [img, formated_annotetion] for img, formated_annotetion in zip(images, formated_annotationss)
+                [img, formated_annotetion] for img, formated_annotetion in zip(image, formated_annotations)
             ]
 
         image, formated_annotations = self.backlog.pop(0)
