@@ -12,6 +12,7 @@ import numpy as np
 import sys
 sys.path.append('..')
 sys.path.append('../upgreat_detector')
+sys.path.append('../RT-DETR')
 from utils import get_model
 
 
@@ -74,6 +75,7 @@ class LizaDataset(Dataset):
 
 
 if __name__ == "__main__":
+    from config import DATASET_PATH
     mlflow_uri = 'http://localhost:5000'
     project_name = 'LIZA'
     model_name = 'LIZA-detector@base'
@@ -84,12 +86,6 @@ if __name__ == "__main__":
 
     pipline = get_model(mlflow_uri, project_name, model_name)
     model, image_processor = pipline.model, pipline.image_processor
-    DATASET_PATH = os.path.join(
-        os.sep,
-        'ml',
-        'LIZA_dataset',
-        '**',
-    )
     dataset = LizaDataset(DATASET_PATH, image_processor=image_processor, transforms=None)
     dataset.__getitem__(1)
     pass
