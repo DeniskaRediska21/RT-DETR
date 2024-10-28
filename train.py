@@ -1,4 +1,6 @@
 import torch
+import os
+import datetime
 # from transformers import RTDetrForObjectDetection, RTDetrImageProcessor, pipeline
 import mlflow
 import numpy as np
@@ -148,8 +150,10 @@ label2id = {v: k for k, v in id2label.items()}
 
 eval_compute_metrics_fn = MAPEvaluator(image_processor=image_processor, threshold=0.01, id2label=id2label)
 
+
+output_dir = os.path.join("rtdetr-r50-cppe5-finetune", datetime.datetime.now().strftime("%B_%d_%Y_%H_%M_%S"))
 training_args = TrainingArguments(
-    output_dir="rtdetr-r50-cppe5-finetune",
+    output_dir=output_dir,
     num_train_epochs=EPOCHS,
     max_grad_norm=0.1,
     learning_rate=LEARNING_RATE,
