@@ -10,8 +10,8 @@ from data import LizaDataset, get_transforms
 from transformers import Trainer
 from dataclasses import dataclass
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
-from transformers.image_transforms import center_to_corners_format
 from utils.load_to_mlflow import log_model
+from utils import convert_bbox_yolo_to_pascal, collate_fn
 
 from config import (
     MLFLOW_URI,
@@ -22,35 +22,6 @@ from config import (
     LEARNING_RATE,
     BATCH_SIZE,
 )
-
-
-def convert_bbox_yolo_to_pascal(boxes, image_size):
-    """
-    Convert bounding boxes from YOLO format (x_center, y_center, width, height) in range [0, 1]
-    to Pascal VOC format (x_min, y_min, x_max, y_max) in absolute coordinates.
-
-    Args:
-        boxes (torch.Tensor): Bounding boxes in YOLO format
-        image_size (Tuple[int, int]): Image size in format (height, width)
-
-    Returns:
-        torch.Tensor: Bounding boxes in Pascal VOC format (x_min, y_min, x_max, y_max)
-    """
-    # convert center to corners format
-    boxes = center_to_corners_format(boxes)
-
-    # convert to absolute coordinates
-    height, width = image_size[0], image_size[0]
-    boxes = boxes * torch.tensor([[width, height, width, height]])
-
-    return boxes
-
-
-def collate_fn(batch):
-    data = {}
-    data["pixel_values"] = torch.stack([x["pixel_values"] for x in batch])
-    data["labels"] = [x["labels"] for x in batch]
-    return data
 
 
 @dataclass
@@ -150,7 +121,6 @@ id2label = {index: x for index, x in enumerate(categories, start=0)}
 label2id = {v: k for k, v in id2label.items()}
 
 eval_compute_metrics_fn = MAPEvaluator(image_processor=image_processor, threshold=0.01, id2label=id2label)
-
 
 output_dir = os.path.join("rtdetr-r50-cppe5-finetune", datetime.datetime.now().strftime("%B_%d_%Y_%H_%M_%S"))
 
