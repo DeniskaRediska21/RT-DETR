@@ -38,7 +38,7 @@ pipeline_ = get_model(mlflow_uri, project_name, model_name)
 model, image_processor = pipeline_.model, pipeline_.image_processor
 
 dataset_path = DATASET_PATH
-dataset = LizaDataset(dataset_path, image_processor=image_processor, transforms=get_transforms())
+dataset = LizaDataset(dataset_path, image_processor=image_processor, transforms=None)
 train_dataset, validation_dataset = torch.utils.data.random_split(dataset, lengths)
 
 model = model.to(DEVICE)
