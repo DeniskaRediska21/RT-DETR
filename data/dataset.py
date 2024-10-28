@@ -1,7 +1,7 @@
 # import sys
 import glob
 import os
-
+import re
 import torch
 from torch.utils.data import Dataset
 import imagesize
@@ -79,7 +79,7 @@ class LizaDataset(Dataset):
         self.overlap = overlap
         self.annotations = glob.glob(os.path.join(dataset_path, '*.txt'), recursive=True)
         self.annotation_ids = [int(Path(annotation).stem) for annotation in self.annotations]
-        self.images = glob.glob(os.path.join(dataset_path, '*.JPG'), recursive=True)
+        self.images = [file for file in glob.glob(os.path.join(dataset_path, '*'), recursive=True) if re.match(r'(.*\.jpg)|(.*\.JPG)', file)]
         self.image_ids = [int(Path(image).stem) for image in self.images]
 
         _, self.annotations = np.array(sorted(zip(self.annotation_ids, self.annotations))).T
@@ -133,10 +133,12 @@ class LizaDataset(Dataset):
 
             formated_annotations = format_to_coco(self.image_ids[idx], annotations, image.shape)
 
-            images, formated_annotationss = split_sliding_window(image,
-                                                                 formated_annotations,
-                                                                 inference_size=self.inference_size,
-                                                                 overlap=self.overlap)
+            images, formated_annotationss = split_sliding_window(
+                 image,
+                 formated_annotations,
+                 inference_size=self.inference_size,
+                 overlap=self.overlap
+            )
 
             # Apply the image processor transformations: resizing, rescaling, normalization
 
