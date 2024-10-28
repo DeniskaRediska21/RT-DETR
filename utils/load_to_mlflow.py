@@ -17,7 +17,8 @@ from config import (
     MODEL_NAME,
 )
 
-if __name__ == '__main__':
+
+def load_to_mlflow(PATH):
     categories = ['person']
     id2label = {index: x for index, x in enumerate(categories, start=0)}
     label2id = {v: k for k, v in id2label.items()}
@@ -26,7 +27,6 @@ if __name__ == '__main__':
     url = 'http://images.cocodataset.org/val2017/000000039769.jpg'
     image = Image.open(requests.get(url, stream=True).raw)
 
-    PATH = Path(os.sep, 'home', 'lenis', 'Track', 'RT-DETR', 'weights', 'RT_DETR_HF')
     image_processor = RTDetrImageProcessor.from_pretrained(PATH, local_files_only=True)
     model = RTDetrForObjectDetection.from_pretrained(PATH,
                                                      local_files_only=True,
@@ -64,12 +64,18 @@ if __name__ == '__main__':
         signature=signature_DETR,
     )
 
-    results = image_processor.post_process_object_detection(outputs,
-                                                            target_sizes=torch.tensor([image.size[::-1]]),
-                                                            threshold=0.3)
+    # results = image_processor.post_process_object_detection(outputs,
+    #                                                         target_sizes=torch.tensor([image.size[::-1]]),
+    #                                                         threshold=0.3)
 
-    for result in results:
-        for score, label_id, box in zip(result["scores"], result["labels"], result["boxes"]):
-            score, label = score.item(), label_id.item()
-            box = [round(i, 2) for i in box.tolist()]
-            print(f"{model.config.id2label[label]}: {score:.2f} {box}")
+    # for result in results:
+    #     for score, label_id, box in zip(result["scores"], result["labels"], result["boxes"]):
+    #         score, label = score.item(), label_id.item()
+    #         box = [round(i, 2) for i in box.tolist()]
+    #         print(f"{model.config.id2label[label]}: {score:.2f} {box}")
+
+
+if __name__ == '__main__':
+    PATH = Path(os.sep, 'home', 'user', 'LIZA', 'RT-DETR', 'weights', 'RT_DETR_HF')
+    load_to_mlflow(PATH)
+
