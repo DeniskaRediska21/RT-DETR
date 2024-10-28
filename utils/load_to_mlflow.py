@@ -75,7 +75,24 @@ def load_to_mlflow(PATH):
     #         print(f"{model.config.id2label[label]}: {score:.2f} {box}")
 
 
-if __name__ == '__main__':
-    PATH = Path(os.sep, 'home', 'user', 'LIZA', 'RT-DETR', 'weights', 'RT_DETR_HF')
+def log_model(savedir):
+    checkpoint_dirs = os.listdir(savedir)
+    last_checkpoint = np.argmax([int(''.join([ch for ch in filename if 47<ord(ch)<58])) for filename in checkpoint_dirs])
+    last_checkpoint_dir = checkpoint_dirs[last_checkpoint]
+    PATH = os.path.join(savedir, last_checkpoint_dir)
     load_to_mlflow(PATH)
+
+
+if __name__ == '__main__':
+    # PATH = Path(os.sep, 'home', 'user', 'LIZA', 'RT-DETR', 'weights', 'RT_DETR_HF')
+    # load_to_mlflow(PATH)
+    PATH = Path(os.sep,
+                'home',
+                'user',
+                'LIZA',
+                'RT-DETR',
+                'rtdetr-r50-cppe5-finetune',
+                'October_28_2024_10_11_54',
+        )
+    log_model(PATH)
 

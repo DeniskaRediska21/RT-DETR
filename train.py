@@ -11,6 +11,7 @@ from transformers import Trainer
 from dataclasses import dataclass
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 from transformers.image_transforms import center_to_corners_format
+from utils.load_to_mlflow import log_model
 
 from config import (
     MLFLOW_URI,
@@ -152,6 +153,7 @@ eval_compute_metrics_fn = MAPEvaluator(image_processor=image_processor, threshol
 
 
 output_dir = os.path.join("rtdetr-r50-cppe5-finetune", datetime.datetime.now().strftime("%B_%d_%Y_%H_%M_%S"))
+
 training_args = TrainingArguments(
     output_dir=output_dir,
     num_train_epochs=EPOCHS,
@@ -180,4 +182,9 @@ trainer = Trainer(
     compute_metrics=eval_compute_metrics_fn,
 )
 
-trainer.train()
+try:
+    trainer.train()
+except Exception as exp:
+    log_model(output_dir)
+    raise exp
+log_model(output_dir)
