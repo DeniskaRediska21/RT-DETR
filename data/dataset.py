@@ -9,7 +9,9 @@ import mlflow
 from torchvision.io import decode_image
 from pathlib import Path
 import numpy as np
-
+import sys
+sys.path.append('..')
+sys.path.append('../upgreat_detector')
 from utils import get_model
 
 
@@ -64,7 +66,7 @@ def format_to_coco(image_id, annotations, image_shape):
         formated.append({
             "image_id": image_id,
             "category_id": category,
-            "bbox": [xmin * w, ymin * h, bw * w, bh * h],
+            "bbox": [(xmin - 0.5 * bw) * w, (ymin - 0.5 * bh) * h, bw * w, bh * h],
             "iscrowd": 0,
             "area": bbox[2] * bbox[3],
         })
@@ -74,7 +76,7 @@ def format_to_coco(image_id, annotations, image_shape):
 
 class LizaDataset(Dataset):
 
-    def __init__(self, dataset_path, image_processor, transforms=None, inference_size=640, overlap=0.2, do_slide=False):
+    def __init__(self, dataset_path, image_processor, transforms=None, inference_size=640, overlap=0.2, do_slide=True):
         self.inference_size = inference_size
         self.overlap = overlap
         self.annotations = glob.glob(os.path.join(dataset_path, '*.txt'), recursive=True)
@@ -96,18 +98,20 @@ class LizaDataset(Dataset):
         self.backlog = []
 
         repetitions = [
-            int(h / (inference_size * (1 - overlap))) * int(w / (inference_size * (1 - overlap)))
+            int(np.ceil(h / (inference_size * (1 - overlap)))) * int(np.ceil(w / (inference_size * (1 - overlap))))
             for w, h in self.image_sizes
         ]
 
         repeated_images = []
         [repeated_images.append(image) for image, reps in zip(self.images, repetitions) for _ in range(reps)]
+
         repeated_image_ids = []
         [
             repeated_image_ids.append(image_id)
             for image_id, reps in zip(self.image_ids, repetitions)
             for _ in range(reps)
         ]
+
         repeated_annotations = []
         [
             repeated_annotations.append(annotation)
@@ -121,7 +125,7 @@ class LizaDataset(Dataset):
         self.do_slide = do_slide
 
     def __len__(self):
-        return len(self.annotations)
+        return len(self.images)
 
     def __getitem__(self, idx):
 
@@ -172,7 +176,12 @@ if __name__ == "__main__":
 
     pipline = get_model(mlflow_uri, project_name, model_name)
     model, image_processor = pipline.model, pipline.image_processor
-
-    dataset = LizaDataset(os.path.join('..', 'Dataset'), image_processor=image_processor, transforms=None)
-    dataset.__getitem__(0)
+    DATASET_PATH = os.path.join(
+        os.sep,
+        'ml',
+        'LIZA_dataset',
+        '**',
+    )
+    dataset = LizaDataset(DATASET_PATH, image_processor=image_processor, transforms=None, do_slide = False)
+    dataset.__getitem__(1)
     pass

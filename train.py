@@ -138,10 +138,10 @@ training_args = TrainingArguments(
     # metric_for_best_model="eval_map",
     # greater_is_better=True,
     # load_best_model_at_end=True,
-    eval_strategy="steps",
+    eval_strategy="epoch",
     save_strategy="steps",
-    eval_steps=500,
     save_steps=500,
+    logging_steps=100,
     save_total_limit=2,
     remove_unused_columns=False,
     eval_do_concat_batches=False,
@@ -157,9 +157,10 @@ trainer = Trainer(
     # compute_metrics=eval_compute_metrics_fn,
 )
 
-try:
-    trainer.train()
-except (Exception, KeyboardInterrupt) as exp:
-    log_model(output_dir)
-    raise exp
-log_model(output_dir)
+trainer.train()
+# try:
+    # trainer.train()
+# except (Exception, KeyboardInterrupt) as exp:
+#     log_model(output_dir)
+#     raise exp
+# log_model(output_dir)
