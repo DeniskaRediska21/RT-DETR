@@ -27,20 +27,8 @@ def convert_bbox_yolo_to_pascal(boxes, image_size):
 
 
 def collate_fn(batch):
-    pixel_values = []
-    labels = []
-
-    unannotated = False
-    for x in batch:
-        if len(x['labels']['class_labels']) > 0:
-            pixel_values.append(x["pixel_values"])
-            labels.append(x["labels"])
-        else:
-            if not unannotated:
-                pixel_values.append(x["pixel_values"])
-                labels.append(x["labels"])
-                unannotated = True
-
-    data = {'pixel_values': torch.stack(pixel_values), 'labels': labels}
+    data = {}
+    data["pixel_values"] = torch.stack([x["pixel_values"] for x in batch])
+    data["labels"] = [x["labels"] for x in batch]
 
     return data
