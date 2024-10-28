@@ -21,6 +21,7 @@ from config import (
     EPOCHS,
     LEARNING_RATE,
     BATCH_SIZE,
+    DATASET_SIZES,
 )
 
 
@@ -124,6 +125,8 @@ class MAPEvaluator:
 
         metrics = {k: round(v.item(), 4) for k, v in metrics.items()}
 
+        del pridictions, targets, metrics
+
         return metrics
 
 
@@ -132,7 +135,7 @@ project_name = PROJECT_NAME
 model_name = MODEL_NAME
 mlflow.set_tracking_uri(mlflow_uri)
 mlflow.set_experiment(project_name)
-lengths = [0.7, 0.3]
+lengths = DATASET_SIZES 
 
 DEVICE = 'cuda'
 
@@ -162,11 +165,13 @@ training_args = TrainingArguments(
     warmup_steps=300,
     per_device_train_batch_size=BATCH_SIZE,
     dataloader_num_workers=4,
-    metric_for_best_model="eval_map",
-    greater_is_better=True,
-    load_best_model_at_end=True,
+    # metric_for_best_model="eval_map",
+    # greater_is_better=True,
+    # load_best_model_at_end=True,
     eval_strategy="steps",
     save_strategy="steps",
+    eval_steps=500,
+    save_steps=500,
     save_total_limit=2,
     remove_unused_columns=False,
     eval_do_concat_batches=False,
@@ -179,12 +184,12 @@ trainer = Trainer(
     eval_dataset=validation_dataset,
     tokenizer=image_processor,
     data_collator=collate_fn,
-    compute_metrics=eval_compute_metrics_fn,
+    # compute_metrics=eval_compute_metrics_fn,
 )
 
 try:
     trainer.train()
-except Exception as exp:
+except (Exception, KeyboardInterrupt) as exp:
     log_model(output_dir)
     raise exp
 log_model(output_dir)
