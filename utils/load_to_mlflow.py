@@ -1,4 +1,5 @@
 import torch
+import os
 import requests
 from pathlib import Path
 from PIL import Image
@@ -7,6 +8,9 @@ from transformers import pipeline
 import mlflow
 from mlflow.models import infer_signature
 import numpy as np
+import sys
+sys.path.append('..')
+sys.path.append('../RT-DETR')
 from config import (
     MLFLOW_URI,
     PROJECT_NAME,
@@ -22,7 +26,7 @@ if __name__ == '__main__':
     url = 'http://images.cocodataset.org/val2017/000000039769.jpg'
     image = Image.open(requests.get(url, stream=True).raw)
 
-    PATH = Path('weights', 'RT_DETR_HF')
+    PATH = Path(os.sep, 'home', 'lenis', 'Track', 'RT-DETR', 'weights', 'RT_DETR_HF')
     image_processor = RTDetrImageProcessor.from_pretrained(PATH, local_files_only=True)
     model = RTDetrForObjectDetection.from_pretrained(PATH,
                                                      local_files_only=True,
