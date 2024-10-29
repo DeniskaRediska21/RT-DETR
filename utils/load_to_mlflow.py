@@ -3,7 +3,7 @@ import os
 import requests
 from pathlib import Path
 from PIL import Image
-from transformers import RTDetrForObjectDetection, RTDetrImageProcessor
+from transformers import RTDetrForObjectDetection, RTDetrImageProcessor, AutoImageProcessor, AutoModelForObjectDetection, DetrImageProcessor, DetrForObjectDetection
 from transformers import pipeline
 import mlflow
 from mlflow.models import infer_signature
@@ -20,18 +20,18 @@ from config import (
 
 def load_to_mlflow(PATH):
     categories = ['person']
-    id2label = {index: x for index, x in enumerate(categories, start=0)}
-    label2id = {v: k for k, v in id2label.items()}
+    # id2label = {index: x for index, x in enumerate(categories, start=0)}
+    # label2id = {v: k for k, v in id2label.items()}
 
     DEVICE = 'cpu'
     url = 'http://images.cocodataset.org/val2017/000000039769.jpg'
     image = Image.open(requests.get(url, stream=True).raw)
 
-    image_processor = RTDetrImageProcessor.from_pretrained(PATH, local_files_only=True)
-    model = RTDetrForObjectDetection.from_pretrained(PATH,
+    image_processor = DetrImageProcessor.from_pretrained(PATH, local_files_only=True)
+    model = DetrForObjectDetection.from_pretrained(PATH,
                                                      local_files_only=True,
-                                                     id2label=id2label,
-                                                     label2id=label2id,
+                                                     # id2label=id2label,
+                                                     # label2id=label2id,
                                                      ignore_mismatched_sizes=True)
 
     inputs = image_processor(images=image, return_tensors="pt")
@@ -84,15 +84,15 @@ def log_model(savedir):
 
 
 if __name__ == '__main__':
-    PATH = Path(os.sep, 'home', 'user', 'LIZA', 'RT-DETR', 'weights', 'RT_DETR_HF')
+    PATH = Path(os.sep, 'home', 'user', 'LIZA', 'RT-DETR', 'weights', 'RT_DETR_VISDRONE_HF')
     load_to_mlflow(PATH)
-    PATH = Path(os.sep,
-                'home',
-                'user',
-                'LIZA',
-                'RT-DETR',
-                'rtdetr-r50-cppe5-finetune',
-                'October_28_2024_10_11_54',
-        )
-    log_model(PATH)
+    # PATH = Path(os.sep,
+    #             'home',
+    #             'user',
+    #             'LIZA',
+    #             'RT-DETR',
+    #             'rtdetr-r50-cppe5-finetune',
+    #             'October_28_2024_10_11_54',
+    #     )
+    # log_model(PATH)
 

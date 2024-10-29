@@ -15,7 +15,9 @@ from dataclasses import dataclass
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 from utils.load_to_mlflow import log_model
 from utils import convert_bbox_yolo_to_pascal, collate_fn
-
+from transformers import DetrImageProcessor, DetrForObjectDetection
+from PIL import Image
+import requests
 from config import (
     MLFLOW_URI,
     PROJECT_NAME,
@@ -51,7 +53,11 @@ if __name__ == '__main__':
     DEVICE = 'cuda'
 
     pipeline_ = get_model(mlflow_uri, project_name, model_name.split('@')[0] + '@trained')
+    # pipeline_ = get_model(mlflow_uri, project_name, model_name.split('@')[0] + '@base_detr_visdrone')
     model, image_processor = pipeline_.model, pipeline_.image_processor
+
+    image_processor.do_resize = False
+    image_processor.do_normalize = False
 
     dataset_path = DATASET_PATH
     dataset = LizaDataset(dataset_path, image_processor=image_processor, transforms=None)
@@ -67,7 +73,7 @@ if __name__ == '__main__':
         postprocessed_outputs = image_processor.post_process_object_detection(
             outputs,
             target_sizes=[(height, width)],
-            threshold=0.3
+            threshold=0.2
         )
         results = postprocessed_outputs[0]
         plot_results(image.numpy().transpose((1,2,0)), results['scores'].tolist(), results['labels'].tolist(), results['boxes'].tolist())
