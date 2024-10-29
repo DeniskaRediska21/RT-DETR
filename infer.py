@@ -54,7 +54,7 @@ if __name__ == '__main__':
     model, image_processor = pipeline_.model, pipeline_.image_processor
 
     dataset_path = DATASET_PATH
-    dataset = LizaDataset(dataset_path, image_processor=image_processor, transforms=get_transforms())
+    dataset = LizaDataset(dataset_path, image_processor=image_processor, transforms=None)
 
     model = model.to(DEVICE)
     for n_image in range(len(dataset)):
@@ -70,4 +70,4 @@ if __name__ == '__main__':
             threshold=0.3
         )
         results = postprocessed_outputs[0]
-        plot_results(to_pil_image(image), results['scores'].tolist(), results['labels'].tolist(), results['boxes'].tolist())
+        plot_results(image.numpy().transpose((1,2,0)), results['scores'].tolist(), results['labels'].tolist(), results['boxes'].tolist())

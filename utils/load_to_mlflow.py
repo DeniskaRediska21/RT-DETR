@@ -84,8 +84,8 @@ def log_model(savedir):
 
 
 if __name__ == '__main__':
-    # PATH = Path(os.sep, 'home', 'user', 'LIZA', 'RT-DETR', 'weights', 'RT_DETR_HF')
-    # load_to_mlflow(PATH)
+    PATH = Path(os.sep, 'home', 'user', 'LIZA', 'RT-DETR', 'weights', 'RT_DETR_HF')
+    load_to_mlflow(PATH)
     PATH = Path(os.sep,
                 'home',
                 'user',
