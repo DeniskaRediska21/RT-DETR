@@ -11,7 +11,6 @@ from torchvision import tv_tensors
 from pathlib import Path
 import numpy as np
 import sys
-from transforms import get_transforms
 sys.path.append('..')
 sys.path.append('../upgreat_detector')
 sys.path.append('../RT-DETR')
@@ -102,6 +101,7 @@ class LizaDataset(Dataset):
 if __name__ == "__main__":
     from config import DATASET_PATH
     import matplotlib.pyplot as plt
+    from transforms import get_transforms
     mlflow_uri = 'http://localhost:5000'
     project_name = 'LIZA'
     model_name = 'LIZA-detector@base'
