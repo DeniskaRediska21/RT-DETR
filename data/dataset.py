@@ -61,8 +61,8 @@ class LizaDataset(Dataset):
         self.images = natsorted(self.images)
         self.annotations = natsorted(self.annotations)
 
-        self.images_ids = list(range(len(self.images)))
-        self.annotations_ids = list(range(len(self.annotations)))
+        self.image_ids = list(range(len(self.images)))
+        self.annotation_ids = list(range(len(self.annotations)))
         
         # self.image_ids = [int(Path(image).stem) for image in self.images]
         # self.annotation_ids = [int(Path(annotation).stem) for annotation in self.annotations]
