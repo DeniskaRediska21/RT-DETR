@@ -43,7 +43,7 @@ def format_to_coco(image_id, annotations, image_shape):
         bbox = [xmin, ymin, bw, bh]
         formated.append({
             "image_id": image_id,
-            "category_id": category,
+            "category_id": category + 1,
             "bbox": [(xmin - 0.5 * bw) * w, (ymin - 0.5 * bh) * h, bw * w, bh * h],
             "iscrowd": 0,
             "area": bbox[2] * bbox[3],
