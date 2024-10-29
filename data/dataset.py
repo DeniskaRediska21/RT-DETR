@@ -94,10 +94,11 @@ class LizaDataset(Dataset):
                 format="XYWH",
                 canvas_size=image.shape[-2:],
             )
-            image, out_boxes = self.transforms(image, bboxes)
+            if len(bboxes) != 0:
+                image, out_boxes = self.transforms(image, bboxes)
 
-            for index, box in enumerate(out_boxes):
-                formated_annotations['annotations'][index]['bbox'] = box
+                for index, box in enumerate(out_boxes):
+                    formated_annotations['annotations'][index]['bbox'] = box
 
         result = self.image_processor(images=image, annotations=formated_annotations, return_tensors="pt")
         # Image processor expands batch dimension, lets squeeze it

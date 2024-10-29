@@ -67,7 +67,7 @@ if __name__ == '__main__':
         postprocessed_outputs = image_processor.post_process_object_detection(
             outputs,
             target_sizes=[(height, width)],
-            threshold=0.3
+            threshold=0.1
         )
         results = postprocessed_outputs[0]
         plot_results(image.numpy().transpose((1,2,0)), results['scores'].tolist(), results['labels'].tolist(), results['boxes'].tolist())
