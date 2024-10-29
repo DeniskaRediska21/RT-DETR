@@ -2,6 +2,7 @@
 import glob
 import os
 import re
+from natsort import natsorted
 import torch
 from torch.utils.data import Dataset
 import imagesize
@@ -55,13 +56,20 @@ class LizaDataset(Dataset):
 
     def __init__(self, dataset_path, image_processor, transforms=None):
         self.annotations = glob.glob(os.path.join(dataset_path, '*.txt'), recursive=True)
-        self.annotation_ids = [int(Path(annotation).stem) for annotation in self.annotations]
         self.images = [file for file in glob.glob(os.path.join(dataset_path, '*'), recursive=True) if re.match(r'(.*\.jpg)|(.*\.JPG)', file)]
-        self.image_ids = [int(Path(image).stem) for image in self.images]
 
-        _, self.annotations = np.array(sorted(zip(self.annotation_ids, self.annotations))).T
-        _, self.images = np.array(sorted(zip(self.image_ids, self.images))).T
-        self.image_ids = sorted(self.image_ids)
+        self.images = natsorted(self.images)
+        self.annotations = natsorted(self.annotations)
+
+        self.images_ids = list(range(len(self.images)))
+        self.annotations_ids = list(range(len(self.annotations)))
+        
+        # self.image_ids = [int(Path(image).stem) for image in self.images]
+        # self.annotation_ids = [int(Path(annotation).stem) for annotation in self.annotations]
+        # _, self.annotations = np.array(sorted(zip(self.annotation_ids, self.annotations))).T
+        # _, self.images = np.array(sorted(zip(self.image_ids, self.images))).T
+        # self.image_ids = sorted(self.image_ids)
+
         self.image_processor = image_processor
         self.transforms = transforms
 
@@ -113,6 +121,7 @@ if __name__ == "__main__":
     pipline = get_model(mlflow_uri, project_name, model_name)
     model, image_processor = pipline.model, pipline.image_processor
     dataset = LizaDataset(DATASET_PATH, image_processor=image_processor, transforms=get_transforms())
-    a = dataset.__getitem__(1)
-    plot_image(a['pixel_values'].numpy().transpose((1,2,0)), a['labels']['boxes'])
+    for index in range(len(dataset)):
+        a = dataset.__getitem__(index)
+        plot_image(a['pixel_values'].numpy().transpose((1,2,0)), a['labels']['boxes'])
     pass
