@@ -94,7 +94,7 @@ class LizaDataset(Dataset):
                 format="XYWH",
                 canvas_size=image.shape[-2:],
             )
-            if len(bboxes) != 0:
+            if bboxes.size()[1] != 0:
                 image, out_boxes = self.transforms(image, bboxes)
 
                 for index, box in enumerate(out_boxes):
