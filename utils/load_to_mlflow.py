@@ -20,8 +20,8 @@ from config import (
 
 def load_to_mlflow(PATH):
     categories = ['person']
-    # id2label = {index: x for index, x in enumerate(categories, start=0)}
-    # label2id = {v: k for k, v in id2label.items()}
+    id2label = {index: x for index, x in enumerate(categories, start=0)}
+    label2id = {v: k for k, v in id2label.items()}
 
     DEVICE = 'cpu'
     url = 'http://images.cocodataset.org/val2017/000000039769.jpg'
@@ -30,8 +30,8 @@ def load_to_mlflow(PATH):
     image_processor = DetrImageProcessor.from_pretrained(PATH, local_files_only=True)
     model = DetrForObjectDetection.from_pretrained(PATH,
                                                      local_files_only=True,
-                                                     # id2label=id2label,
-                                                     # label2id=label2id,
+                                                     id2label=id2label,
+                                                     label2id=label2id,
                                                      ignore_mismatched_sizes=True)
 
     inputs = image_processor(images=image, return_tensors="pt")
