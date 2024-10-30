@@ -85,7 +85,7 @@ class LizaDataset(Dataset):
             for index in range(len(annotations)):
                 annotations[index] = eval(f"[{annotations[index].replace(' ', ',')}]")
 
-        formated_annotations = format_to_coco(self.image_ids[idx], annotations, image.shape)
+        formated_annotations = format_to_coco(self.image_ids[idx], annotations, image.shape,num_pedestrian=self.num_pedestrian)
 
 
         # Apply the torchvision transforms if provided
