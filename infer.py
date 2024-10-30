@@ -91,13 +91,14 @@ if __name__ == '__main__':
         step_size = int(INFERENCE_SIZE * (1 - OVERLAP))
 
         # Sliding window
-        h_range = np.array(range(0, height, step_size))
-        w_range = np.array(range(0, width, step_size))
+        h_range = np.array(range(0, height-INFERENCE_SIZE+step_size, step_size))
+        w_range = np.array(range(0, width-INFERENCE_SIZE+step_size, step_size))
 
         h_range[-1] = height - INFERENCE_SIZE if h_range[-1] + INFERENCE_SIZE > height else h_range[-1]
         w_range[-1] = width - INFERENCE_SIZE if w_range[-1] + INFERENCE_SIZE > width else w_range[-1]
 
         subs = [image[:, ymin: ymin + INFERENCE_SIZE, xmin: xmin + INFERENCE_SIZE] for ymin in h_range for xmin in w_range]
+
         additions = torch.tensor([(ymin, xmin) for ymin in h_range for xmin in w_range])
 
         subs = torch.stack(subs)
@@ -114,9 +115,6 @@ if __name__ == '__main__':
         for batch, addition in zip(batches, batched_additions):
             with torch.no_grad():
                 outputs = model(batch.to(DEVICE))
-                # for index_in_batch in range(len(batch)):
-                #     outputs['pred_boxes'][index_in_batch,:,0] += addition[index_in_batch, 1] / width
-                #     outputs['pred_boxes'][index_in_batch,:,1] += addition[index_in_batch, 0] / height
                 [outputs_all[key].append(val) for key, value in outputs.items() for val in value]
                 pass
 

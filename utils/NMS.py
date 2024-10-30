@@ -7,7 +7,7 @@ def delete(arr: torch.Tensor, indexes: int) -> torch.Tensor:
     return torch.stack([x for index, x in enumerate(arr) if index not in indexes])
 
 
-def remove_overlaping(result, iou_treshold, exclude_diag=True):
+def remove_overlaping(result, iou_treshold, exclude_diag=True, ratio_tresh=0.5):
     neibor = result
     if result['boxes'].__len__() > 0:
         iou = box_iou(torch.Tensor(result['boxes']), torch.Tensor(neibor['boxes']))
@@ -17,6 +17,12 @@ def remove_overlaping(result, iou_treshold, exclude_diag=True):
         I = torch.tensor([result['scores'][current_idx] > neibor['scores'][next_idx] for current_idx, next_idx in zip(in_current, in_next)])
         in_current = in_current[torch.logical_not(I)]
         in_next = in_next[I]
+        if ratio_tresh is not None:
+            boxes = result['boxes']
+            ratio = (boxes[:,0] - boxes[:,2]) / (boxes[:,1] - boxes[:,3])
+            ratio_idx = torch.where(
+                torch.logical_and(ratio > ratio_tresh, ratio < 1 + ratio_tresh)
+            )
 
         for key in result:
             result[key] = delete(result[key], in_current)
