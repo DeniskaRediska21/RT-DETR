@@ -41,7 +41,9 @@ image_processor.do_resize = False
 image_processor.do_normalize = False
 
 dataset_path = DATASET_PATH
-dataset = LizaDataset(dataset_path, image_processor=image_processor, transforms=None)
+people_names = ['edestrian', 'person']
+num_pedestrian = [id for id, label in model.config.id2label.items() if any([name in label for name in people_names])][0]
+dataset = LizaDataset(dataset_path, image_processor=image_processor, transforms=None, num_pedestrian=num_pedestrian)
 train_dataset, validation_dataset = torch.utils.data.random_split(dataset, lengths)
 
 model = model.to(DEVICE)

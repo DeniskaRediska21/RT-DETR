@@ -33,7 +33,7 @@ def plot_image(pil_img, boxes):
     plt.show()
 
 
-def format_to_coco(image_id, annotations, image_shape):
+def format_to_coco(image_id, annotations, image_shape, num_pedestrian):
     formated = []
     for annotation in annotations:
         if len(annotation) == 0:
@@ -43,7 +43,7 @@ def format_to_coco(image_id, annotations, image_shape):
         bbox = [xmin, ymin, bw, bh]
         formated.append({
             "image_id": image_id,
-            "category_id": category+1,
+            "category_id": num_pedestrian,
             "bbox": [(xmin - 0.5 * bw) * w, (ymin - 0.5 * bh) * h, bw * w, bh * h],
             "iscrowd": 0,
             "area": bbox[2] * bbox[3],
@@ -54,7 +54,7 @@ def format_to_coco(image_id, annotations, image_shape):
 
 class LizaDataset(Dataset):
 
-    def __init__(self, dataset_path, image_processor, transforms=None):
+    def __init__(self, dataset_path, image_processor, transforms=None, num_pedestrian=0):
         self.annotations = glob.glob(os.path.join(dataset_path, '*.txt'), recursive=True)
         self.images = [file for file in glob.glob(os.path.join(dataset_path, '*'), recursive=True) if re.match(r'(.*\.jpg)|(.*\.JPG)', file)]
 
@@ -72,6 +72,7 @@ class LizaDataset(Dataset):
 
         self.image_processor = image_processor
         self.transforms = transforms
+        self.num_pedestrian = num_pedestrian
 
     def __len__(self):
         return len(self.images)

@@ -53,10 +53,10 @@ if __name__ == '__main__':
     DEVICE = 'cuda'
 
     pipeline_ = get_model(mlflow_uri, project_name, model_name.split('@')[0] + '@trained')
-    # pipeline_ = get_model(mlflow_uri, project_name, model_name.split('@')[0] + '@base_detr_visdrone_1')
+    # pipeline_ = get_model(mlflow_uri, project_name, model_name.split('@')[0] + '@base_detr_visdrone')
     model, image_processor = pipeline_.model, pipeline_.image_processor
 
-    image_processor.do_resize = False
+    image_processor.do_resize = True
     image_processor.do_normalize = False
 
     dataset_path = DATASET_PATH
@@ -69,11 +69,11 @@ if __name__ == '__main__':
         with torch.no_grad():
             outputs = model(image.to(DEVICE).unsqueeze(0))
 
-        _, width, height = image.size()
+        _, height, width = image.size()
         postprocessed_outputs = image_processor.post_process_object_detection(
             outputs,
             target_sizes=[(height, width)],
-            threshold=0.05
+            threshold=0.1
         )
         results = postprocessed_outputs[0]
         plot_results(image.numpy().transpose((1,2,0)), results['scores'].tolist(), results['labels'].tolist(), results['boxes'].tolist())
