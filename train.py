@@ -30,7 +30,7 @@ project_name = PROJECT_NAME
 model_name = MODEL_NAME
 mlflow.set_tracking_uri(mlflow_uri)
 mlflow.set_experiment(project_name)
-lengths = DATASET_SIZES 
+lengths = DATASET_SIZES
 
 DEVICE = 'cuda'
 
@@ -39,6 +39,7 @@ model, image_processor = pipeline_.model, pipeline_.image_processor
 
 image_processor.do_resize = False
 image_processor.do_normalize = False
+image_processor.do_pad = False
 
 dataset_path = DATASET_PATH
 people_names = ['edestrian', 'person']
