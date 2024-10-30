@@ -1,23 +1,8 @@
 import torch
-
-from torchvision.transforms.functional import to_pil_image
-import os
-import datetime
 import matplotlib.pyplot as plt
-# from transformers import RTDetrForObjectDetection, RTDetrImageProcessor, pipeline
-import mlflow
 import numpy as np
 from utils import get_model
-from transformers import TrainingArguments
-from data import LizaDataset, get_transforms
-from transformers import Trainer
-from dataclasses import dataclass
-from torchmetrics.detection.mean_ap import MeanAveragePrecision
-from utils.load_to_mlflow import log_model
-from utils import convert_bbox_yolo_to_pascal, collate_fn
-from transformers import DetrImageProcessor, DetrForObjectDetection
-from PIL import Image
-import requests
+from data import LizaDataset 
 from utils.NMS import remove_overlaping
 from config import (
     MLFLOW_URI,
@@ -28,6 +13,7 @@ from config import (
     INFERENCE_SIZE,
     OVERLAP,
     NMS_IOU_TRESHOLD,
+    RATIO_TRESH,
 )
 
 
@@ -41,7 +27,7 @@ def plot_results(pil_img, postprocessed_outputs, additions, width, height):
     plt.imshow(pil_img)
     ax = plt.gca()
     # for output, addition in zip(postprocessed_outputs, additions):
-    postprocessed_outputs = remove_overlaping(postprocessed_outputs, NMS_IOU_TRESHOLD)
+    postprocessed_outputs = remove_overlaping(postprocessed_outputs, NMS_IOU_TRESHOLD, ratio_tresh=RATIO_TRESH)
     scores = postprocessed_outputs['scores'].to('cpu')
     labels = postprocessed_outputs['labels'].to('cpu')
     boxes = postprocessed_outputs['boxes'].to('cpu')
