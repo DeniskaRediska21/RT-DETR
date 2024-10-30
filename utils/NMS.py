@@ -21,7 +21,7 @@ def remove_overlaping(result, iou_treshold, exclude_diag=True, ratio_tresh=10):
             for key in result:
                 result[key] = delete(result[key], ratio_idx[0])
 
-        iou = box_iou(torch.Tensor(result['boxes']), torch.Tensor(neibor['boxes']))
+        iou = box_iou(torch.Tensor(result['boxes']).to('cpu'), torch.Tensor(neibor['boxes']).to('cpu'))
         in_current, in_next = torch.where(iou > iou_treshold)
         if exclude_diag:
             in_current, in_next = torch.tensor([[curr, nex] for curr, nex in zip(in_current, in_next) if curr != nex]).T

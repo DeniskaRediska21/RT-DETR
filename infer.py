@@ -59,8 +59,8 @@ if __name__ == '__main__':
 
     DEVICE = 'cuda'
 
-    pipeline_ = get_model(mlflow_uri, project_name, model_name.split('@')[0] + '@trained')
-    # pipeline_ = get_model(mlflow_uri, project_name, model_name.split('@')[0] + '@base_detr_visdrone')
+    # pipeline_ = get_model(mlflow_uri, project_name, model_name.split('@')[0] + '@trained')
+    pipeline_ = get_model(mlflow_uri, project_name, model_name.split('@')[0] + '@base_deta_resnet50')
     model, image_processor = pipeline_.model, pipeline_.image_processor
 
     image_processor.do_resize = False
@@ -94,16 +94,20 @@ if __name__ == '__main__':
         batched_additions = torch.split(additions, batch_size)
 
         outputs_all = AttrDict()
-        outputs_all.logits = []
-        outputs_all.pred_boxes = []
-        outputs_all.last_hidden_state = []
-        outputs_all.encoder_last_hidden_state = []
+        # for key in c
+        # outputs_all.logits = []
+        # outputs_all.pred_boxes = []
+        # outputs_all.last_hidden_state = []
+        # outputs_all.encoder_last_hidden_state = []
 
         for batch, addition in zip(batches, batched_additions):
             with torch.no_grad():
                 outputs = model(batch.to(DEVICE))
-                [outputs_all[key].append(val) for key, value in outputs.items() for val in value]
-                pass
+                for key, value in outputs.items():
+                    if key not in outputs_all:
+                        outputs_all[key] = []
+                    [outputs_all[key].append(val) for val in value]
+                # [outputs_all[key].append(val) for key, value in outputs.items() for val in value]
 
         for key, value in outputs_all.items():
             outputs_all[key] = torch.stack(value)
@@ -112,7 +116,7 @@ if __name__ == '__main__':
         postprocessed_outputs = image_processor.post_process_object_detection(
             outputs_all,
             target_sizes=target_sizes[0],
-            threshold=0.8
+            threshold=0.5
         )
         for index, addition in enumerate(additions):
             postprocessed_outputs[index]['boxes'][:,0] += addition[1]
@@ -121,9 +125,9 @@ if __name__ == '__main__':
             postprocessed_outputs[index]['boxes'][:,3] += addition[0]
             
         postprocessed_outputs_squeezed = AttrDict()
-        postprocessed_outputs_squeezed.boxes = torch.stack([box for out in postprocessed_outputs for box in out['boxes']])
-        postprocessed_outputs_squeezed.labels = torch.stack([label for out in postprocessed_outputs for label in out['labels']])
-        postprocessed_outputs_squeezed.scores = torch.stack([score for out in postprocessed_outputs for score in out['scores']])
-        
+        for key in postprocessed_outputs[0].keys():
+            squeezed = [box for out in postprocessed_outputs for box in out[key]]
+            if len(squeezed) > 0:
+                postprocessed_outputs_squeezed[key] = torch.stack(squeezed)
 
         plot_results(image.numpy().transpose((1, 2, 0)), postprocessed_outputs_squeezed, additions, width, height)

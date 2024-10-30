@@ -9,6 +9,8 @@ import mlflow
 from mlflow.models import infer_signature
 import numpy as np
 import sys
+import copy
+from collections import defaultdict
 sys.path.append('..')
 sys.path.append('../RT-DETR')
 from config import (
@@ -16,9 +18,17 @@ from config import (
     PROJECT_NAME,
     MODEL_NAME,
 )
+from transformers.modeling_utils import unwrap_model
 
 
-def load_to_mlflow(PATH, do_tirm=False):
+def shared_pointers(tensors):
+    ptrs = defaultdict(list)
+    for k, v in tensors.items():
+        ptrs[v.data_ptr()].append(k)
+    return [names for names in ptrs.values() if len(names) > 1]
+
+
+def load_to_mlflow(PATH, do_trim=False):
     categories = ['pedestrian']
     id2label = {index: x for index, x in enumerate(categories, start=0)}
     label2id = {v: k for k, v in id2label.items()}
@@ -27,17 +37,25 @@ def load_to_mlflow(PATH, do_tirm=False):
     url = 'http://images.cocodataset.org/val2017/000000039769.jpg'
     image = Image.open(requests.get(url, stream=True).raw)
 
-    image_processor = DetrImageProcessor.from_pretrained(PATH, local_files_only=True)
+    image_processor = AutoImageProcessor.from_pretrained(PATH, local_files_only=True)
     if do_trim:
-        model = DetrForObjectDetection.from_pretrained(PATH,
+        model = AutoModelForObjectDetection.from_pretrained(PATH,
                                                          local_files_only=True,
                                                          id2label=id2label,
                                                          label2id=label2id,
                                                          ignore_mismatched_sizes=True)
     else:
-        model = DetrForObjectDetection.from_pretrained(PATH,
+        model = AutoModelForObjectDetection.from_pretrained(PATH,
                                                          local_files_only=True,
                                                          ignore_mismatched_sizes=True)
+
+    # loaded = model.state_dict()
+    # shared = shared_pointers(loaded)
+
+    # for shared_weights in shared:
+    #     for name in shared_weights[1:]:
+    #         loaded[name] = copy.deepcopy(loaded.pop(name))
+    # model.load_state_dict(loaded)
 
     inputs = image_processor(images=image, return_tensors="pt")
 
@@ -89,8 +107,8 @@ def log_model(savedir):
 
 
 if __name__ == '__main__':
-    PATH = Path(os.sep, 'home', 'user', 'LIZA', 'RT-DETR', 'weights', 'RT_DETR_VISDRONE_HF')
-    load_to_mlflow(PATH, do_tirm=True)
+    PATH = Path(os.sep, 'home', 'user', 'LIZA', 'RT-DETR', 'weights', 'RT_DETR_HF')
+    load_to_mlflow(PATH, do_trim=True)
     # PATH = Path(os.sep,
     #             'home',
     #             'user',
