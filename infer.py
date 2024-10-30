@@ -18,6 +18,7 @@ from utils import convert_bbox_yolo_to_pascal, collate_fn
 from transformers import DetrImageProcessor, DetrForObjectDetection
 from PIL import Image
 import requests
+from utils.NMS import remove_overlaping
 from config import (
     MLFLOW_URI,
     PROJECT_NAME,
@@ -26,6 +27,7 @@ from config import (
     VALIDATION_DATASET_PATH,
     INFERENCE_SIZE,
     OVERLAP,
+    NMS_IOU_TRESHOLD,
 )
 
 
@@ -38,22 +40,19 @@ def plot_results(pil_img, postprocessed_outputs, additions, width, height):
     plt.figure(figsize=(16,10))
     plt.imshow(pil_img)
     ax = plt.gca()
-    for output, addition in zip(postprocessed_outputs, additions):
-        scores = output['scores'].to('cpu')
-        labels = output['labels'].to('cpu')
-        boxes = output['boxes'].to('cpu')
-        boxes[:,0] += addition[1]
-        boxes[:,1] += addition[0]
-        boxes[:,2] += addition[1]
-        boxes[:,3] += addition[0]
+    # for output, addition in zip(postprocessed_outputs, additions):
+    postprocessed_outputs = remove_overlaping(postprocessed_outputs, NMS_IOU_TRESHOLD)
+    scores = postprocessed_outputs['scores'].to('cpu')
+    labels = postprocessed_outputs['labels'].to('cpu')
+    boxes = postprocessed_outputs['boxes'].to('cpu')
 
-        colors = COLORS * 100
-        for score, label, (xmin, ymin, xmax, ymax), c in zip(scores, labels, boxes, colors):
-            ax.add_patch(plt.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
-                                       fill=False, color=c, linewidth=3))
-            text = f'{model.config.id2label[int(label)]}: {score:0.2f}'
-            ax.text(xmin, ymin, text, fontsize=15,
-                    bbox=dict(facecolor='yellow', alpha=0.5))
+    colors = COLORS * 100
+    for score, label, (xmin, ymin, xmax, ymax), c in zip(scores, labels, boxes, colors):
+        ax.add_patch(plt.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
+                                   fill=False, color=c, linewidth=3))
+        text = f'{model.config.id2label[int(label)]}: {score:0.2f}'
+        ax.text(xmin, ymin, text, fontsize=15,
+                bbox=dict(facecolor='yellow', alpha=0.5))
     plt.axis('off')
     plt.show()
 
@@ -130,5 +129,16 @@ if __name__ == '__main__':
             target_sizes=target_sizes[0],
             threshold=0.8
         )
+        for index, addition in enumerate(additions):
+            postprocessed_outputs[index]['boxes'][:,0] += addition[1]
+            postprocessed_outputs[index]['boxes'][:,1] += addition[0]
+            postprocessed_outputs[index]['boxes'][:,2] += addition[1]
+            postprocessed_outputs[index]['boxes'][:,3] += addition[0]
+            
+        postprocessed_outputs_squeezed = AttrDict()
+        postprocessed_outputs_squeezed.boxes = torch.stack([box for out in postprocessed_outputs for box in out['boxes']])
+        postprocessed_outputs_squeezed.labels = torch.stack([label for out in postprocessed_outputs for label in out['labels']])
+        postprocessed_outputs_squeezed.scores = torch.stack([score for out in postprocessed_outputs for score in out['scores']])
+        
 
-        plot_results(image.numpy().transpose((1, 2, 0)), postprocessed_outputs, additions, width, height)
+        plot_results(image.numpy().transpose((1, 2, 0)), postprocessed_outputs_squeezed, additions, width, height)
