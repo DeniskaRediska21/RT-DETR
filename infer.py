@@ -14,6 +14,7 @@ from config import (
     OVERLAP,
     NMS_IOU_TRESHOLD,
     RATIO_TRESH,
+    INFERENCE_BATCH_SIZE,
 )
 
 
@@ -88,7 +89,7 @@ if __name__ == '__main__':
         additions = torch.tensor([(ymin, xmin) for ymin in h_range for xmin in w_range])
 
         subs = torch.stack(subs)
-        batch_size = 1
+        batch_size = INFERENCE_BATCH_SIZE
         batches = torch.split(subs, batch_size)
         batched_additions = torch.split(additions, batch_size)
 
