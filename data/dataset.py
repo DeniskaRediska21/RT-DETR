@@ -16,6 +16,7 @@ sys.path.append('..')
 sys.path.append('../upgreat_detector')
 sys.path.append('../RT-DETR')
 from utils import get_model
+from config import MLFLOW_URI, PROJECT_NAME, MODEL_NAME_VAL
 
 
 def plot_image(pil_img, boxes):
@@ -26,8 +27,8 @@ def plot_image(pil_img, boxes):
     ax = plt.gca()
     colors = COLORS * 100
     H, W, _ = np.shape(pil_img)
-    for (xmin, ymin, w, h), c in zip(boxes, colors):
-        ax.add_patch(plt.Rectangle((W * (xmin), H * (ymin)), W * w, H * h,
+    for (xcenter, ycenter, w, h), c in zip(boxes, colors):
+        ax.add_patch(plt.Rectangle((W * xcenter, H * ycenter), W * w, H * h,
                                    fill=False, color=c, linewidth=3))
     plt.axis('off')
     plt.show()
@@ -39,14 +40,15 @@ def format_to_coco(image_id, annotations, image_shape, num_pedestrian):
         if len(annotation) == 0:
             continue
         _, h, w = image_shape
-        category, xmin, ymin, bw, bh = annotation
-        bbox = [xmin, ymin, bw, bh]
+        category, xcenter, ycenter, bw, bh = annotation
+        xmin, ymin = xcenter - bw/2, ycenter - bh/2
+
         formated.append({
             "image_id": image_id,
             "category_id": num_pedestrian,
-            "bbox": [(xmin - bw) * w, (ymin - bh) * h, bw * w, bh * h],
+            "bbox": [(xmin) * w, (ymin) * h, (bw)* w,(bh) * h],
             "iscrowd": 0,
-            "area": bbox[2] * bbox[3],
+            "area": bh * bw * h * w,
         })
 
     return {"image_id": image_id, "annotations": formated}
@@ -90,16 +92,17 @@ class LizaDataset(Dataset):
 
         # Apply the torchvision transforms if provided
         if self.transforms is not None:
-            bboxes = tv_tensors.BoundingBoxes(
-                [dict_['bbox'] for dict_ in formated_annotations['annotations']],
-                format="CXCYWH",
-                canvas_size=image.shape[-2:],
-            )
-            if bboxes.size()[1] != 0:
-                image, out_boxes = self.transforms(image, bboxes)
+            # bboxes = tv_tensors.BoundingBoxes(
+            #     [dict_['bbox'] for dict_ in formated_annotations['annotations']],
+            #     format="CXCYWH",
+            #     canvas_size=image.shape[-2:],
+            # )
+            # if bboxes.size()[1] != 0:
+            #     image, out_boxes = self.transforms(image, bboxes)
 
-                for index, box in enumerate(out_boxes):
-                    formated_annotations['annotations'][index]['bbox'] = box
+            #     for index, box in enumerate(out_boxes):
+            #         formated_annotations['annotations'][index]['bbox'] = box
+            pass
 
         result = self.image_processor(images=image, annotations=formated_annotations, return_tensors="pt")
         # Image processor expands batch dimension, lets squeeze it
@@ -122,7 +125,7 @@ if __name__ == "__main__":
 
     pipline = get_model(mlflow_uri, project_name, model_name)
     model, image_processor = pipline.model, pipline.image_processor
-    dataset = LizaDataset(DATASET_PATH, image_processor=image_processor, transforms=get_transforms())
+    dataset = LizaDataset(DATASET_PATH, image_processor=image_processor, transforms=None)
     for index in range(len(dataset)):
         a = dataset.__getitem__(index)
         plot_image(a['pixel_values'].numpy().transpose((1,2,0)), a['labels']['boxes'])

@@ -10,7 +10,7 @@ from pprint import pprint
 from config import (
     MLFLOW_URI,
     PROJECT_NAME,
-    MODEL_NAME,
+    MODEL_NAME_VAL,
     DATASET_PATH,
     VALIDATION_DATASET_PATH,
     INFERENCE_SIZE,
@@ -48,12 +48,13 @@ def plot_results(pil_img, postprocessed_outputs, additions, width, height, targe
         w, h = xmax - xmin, ymax - ymin
         ax.add_patch(plt.Rectangle((xmin, ymin), w, h,
                                    fill=False, color=c, linewidth=3))
-        text = f'{model.config.id2label[int(label)]}: {score:0.2f}'
+        text = f'{model.config.id2label[int(label)]}: {score:0.4f}'
         ax.text(xmin, ymin, text, fontsize=15,
                 bbox=dict(facecolor='yellow', alpha=0.5))
+
     for xmin, ymin, xmax, ymax in boxes_val:
         w, h = xmax - xmin, ymax - ymin
-        ax.add_patch(plt.Rectangle((xmin, ymin), w, h,
+        ax.add_patch(plt.Rectangle((xmin - w/2, ymin - h/2), w, h,
                                    fill=False, color=COLOR_VAL, linewidth=3))
         
     plt.axis('off')
@@ -71,12 +72,11 @@ class AttrDict(dict):
 if __name__ == '__main__':
     mlflow_uri = MLFLOW_URI
     project_name = PROJECT_NAME
-    model_name = MODEL_NAME
 
     DEVICE = 'cuda'
 
-    pipeline_ = get_model(mlflow_uri, project_name, model_name.split('@')[0] + '@trained')
-    # pipeline_ = get_model(mlflow_uri, project_name, model_name.split('@')[0] + '@base_deta_resnet50')
+    pipeline_ = get_model(mlflow_uri, project_name, MODEL_NAME_VAL)
+
     model, image_processor = pipeline_.model, pipeline_.image_processor
 
     image_processor.do_resize = False
@@ -147,7 +147,7 @@ if __name__ == '__main__':
         for key, value in postprocessed_outputs_squeezed.items():
             if key == 'boxes' and len(value) > 0:
                 # value = value / torch.tensor([width, height, width, height]).to(DEVICE)
-                value = box_convert(value, 'xyxy', 'xywh')
+                value = box_convert(value, 'xyxy', 'cxcywh')
             outputs_for_comparison[key] = value
             # TODO: if saving convert to cxcywh
 
@@ -160,10 +160,10 @@ if __name__ == '__main__':
         )
         pprint(metric.compute())
 
-        pprint(outputs_for_comparison)
-        pprint(dict(
-             boxes=inputs['labels']['boxes'].to(DEVICE) * torch.tensor([width, height, width, height]).to(DEVICE),
-             labels=inputs['labels']['class_labels'].to(DEVICE)
-        ))
+        # pprint(outputs_for_comparison)
+        # pprint(dict(
+        #      boxes=inputs['labels']['boxes'].to(DEVICE) * torch.tensor([width, height, width, height]).to(DEVICE),
+        #      labels=inputs['labels']['class_labels'].to(DEVICE)
+        # ))
         if VERBOSE:
             plot_results(image.numpy().transpose((1, 2, 0)), postprocessed_outputs_squeezed, additions, width, height, inputs['labels']['boxes'])
