@@ -37,7 +37,7 @@ def plot_results(pil_img, postprocessed_outputs, additions, width, height):
     for score, label, (xmin, ymin, xmax, ymax), c in zip(scores, labels, boxes, colors):
         ax.add_patch(plt.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
                                    fill=False, color=c, linewidth=3))
-        text = f'{model.config.id2label[int(label)]}: {score:0.2f}'
+        text = f'{model.config.id2label[int(label)]}: {score:0.5f}'
         ax.text(xmin, ymin, text, fontsize=15,
                 bbox=dict(facecolor='yellow', alpha=0.5))
     plt.axis('off')
@@ -94,40 +94,38 @@ if __name__ == '__main__':
         batched_additions = torch.split(additions, batch_size)
 
         outputs_all = AttrDict()
-        # for key in c
-        # outputs_all.logits = []
-        # outputs_all.pred_boxes = []
-        # outputs_all.last_hidden_state = []
-        # outputs_all.encoder_last_hidden_state = []
+        postprocessed_outputs_squeezed = AttrDict()
 
         for batch, addition in zip(batches, batched_additions):
             with torch.no_grad():
                 outputs = model(batch.to(DEVICE))
-                for key, value in outputs.items():
-                    if key not in outputs_all:
-                        outputs_all[key] = []
-                    [outputs_all[key].append(val) for val in value]
-                # [outputs_all[key].append(val) for key, value in outputs.items() for val in value]
+                postprocessed_outputs = image_processor.post_process_object_detection(
+                    outputs,
+                    target_sizes=[(INFERENCE_SIZE, INFERENCE_SIZE)],
+                    threshold=0.001
+                )
 
-        for key, value in outputs_all.items():
-            outputs_all[key] = torch.stack(value)
+                postprocessed_outputs = postprocessed_outputs[0]
+                addition = addition[0]
 
-        target_sizes = [(INFERENCE_SIZE, INFERENCE_SIZE)] * len(outputs_all['pred_boxes']),
-        postprocessed_outputs = image_processor.post_process_object_detection(
-            outputs_all,
-            target_sizes=target_sizes[0],
-            threshold=0.1
-        )
-        for index, addition in enumerate(additions):
-            postprocessed_outputs[index]['boxes'][:,0] += addition[1]
-            postprocessed_outputs[index]['boxes'][:,1] += addition[0]
-            postprocessed_outputs[index]['boxes'][:,2] += addition[1]
-            postprocessed_outputs[index]['boxes'][:,3] += addition[0]
+                if len(postprocessed_outputs['boxes']):
+                    postprocessed_outputs['boxes'][:,0] += addition[1]
+                    postprocessed_outputs['boxes'][:,1] += addition[0]
+                    postprocessed_outputs['boxes'][:,2] += addition[1]
+                    postprocessed_outputs['boxes'][:,3] += addition[0]
             
-        postprocessed_outputs_squeezed = AttrDict()
-        for key in postprocessed_outputs[0].keys():
-            squeezed = [box for out in postprocessed_outputs for box in out[key]]
-            if len(squeezed) > 0:
-                postprocessed_outputs_squeezed[key] = torch.stack(squeezed)
+                for key, value in postprocessed_outputs.items():
+                    if key not in postprocessed_outputs_squeezed:
+                        postprocessed_outputs_squeezed[key] = []
+                    [postprocessed_outputs_squeezed[key].append(val) for val in value]
+
+        for key, value in postprocessed_outputs_squeezed.items():
+            postprocessed_outputs_squeezed[key] = torch.stack(value)
+
+            
+        # for key in postprocessed_outputs[0].keys():
+        #     squeezed = [box for out in postprocessed_outputs for box in out[key]]
+        #     if len(squeezed) > 0:
+        #         postprocessed_outputs_squeezed[key] = torch.stack(squeezed)
 
         plot_results(image.numpy().transpose((1, 2, 0)), postprocessed_outputs_squeezed, additions, width, height)
