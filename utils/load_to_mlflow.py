@@ -107,7 +107,7 @@ def log_model(savedir):
 
 
 if __name__ == '__main__':
-    PATH = Path(os.sep, 'home', 'user', 'LIZA', 'RT-DETR', 'weights', 'RT_DETR_RESNET101')
+    PATH = Path(os.sep, 'home', 'user', 'LIZA', 'RT-DETR', 'weights', 'RT_DETR_RESNET101_MOD')
     load_to_mlflow(PATH, do_trim=True)
     # PATH = Path(os.sep,
     #             'home',

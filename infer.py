@@ -1,9 +1,12 @@
 import torch
+from torchvision.ops import box_convert
+from torchmetrics.detection.mean_ap import MeanAveragePrecision
 import matplotlib.pyplot as plt
 import numpy as np
 from utils import get_model
 from data import LizaDataset 
 from utils.NMS import remove_overlaping
+from pprint import pprint
 from config import (
     MLFLOW_URI,
     PROJECT_NAME,
@@ -15,6 +18,8 @@ from config import (
     NMS_IOU_TRESHOLD,
     RATIO_TRESH,
     INFERENCE_BATCH_SIZE,
+    VERBOSE,
+    TRESHOLD,
 )
 
 
@@ -22,24 +27,35 @@ from config import (
 COLORS = [[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
           [0.494, 0.184, 0.556], [0.466, 0.674, 0.188], [0.301, 0.745, 0.933]]
 
+COLOR_VAL = [0., 1., 0.]
 
-def plot_results(pil_img, postprocessed_outputs, additions, width, height):
+metric = MeanAveragePrecision(box_format='xywh')
+
+
+def plot_results(pil_img, postprocessed_outputs, additions, width, height, target):
     plt.figure(figsize=(16,10))
     plt.imshow(pil_img)
     ax = plt.gca()
     # for output, addition in zip(postprocessed_outputs, additions):
-    postprocessed_outputs = remove_overlaping(postprocessed_outputs, NMS_IOU_TRESHOLD, ratio_tresh=RATIO_TRESH)
     scores = postprocessed_outputs['scores'].to('cpu')
     labels = postprocessed_outputs['labels'].to('cpu')
     boxes = postprocessed_outputs['boxes'].to('cpu')
 
+    boxes_val = box_convert(target * torch.tensor([width, height, width, height]), 'xywh', 'xyxy').to('cpu')
+
     colors = COLORS * 100
     for score, label, (xmin, ymin, xmax, ymax), c in zip(scores, labels, boxes, colors):
-        ax.add_patch(plt.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
+        w, h = xmax - xmin, ymax - ymin
+        ax.add_patch(plt.Rectangle((xmin, ymin), w, h,
                                    fill=False, color=c, linewidth=3))
         text = f'{model.config.id2label[int(label)]}: {score:0.2f}'
         ax.text(xmin, ymin, text, fontsize=15,
                 bbox=dict(facecolor='yellow', alpha=0.5))
+    for xmin, ymin, xmax, ymax in boxes_val:
+        w, h = xmax - xmin, ymax - ymin
+        ax.add_patch(plt.Rectangle((xmin, ymin), w, h,
+                                   fill=False, color=COLOR_VAL, linewidth=3))
+        
     plt.axis('off')
     plt.show()
 
@@ -102,7 +118,7 @@ if __name__ == '__main__':
                 postprocessed_outputs = image_processor.post_process_object_detection(
                     outputs,
                     target_sizes=[(INFERENCE_SIZE, INFERENCE_SIZE)],
-                    threshold=0.1
+                    threshold=TRESHOLD,
                 )
 
                 postprocessed_outputs = postprocessed_outputs[0]
@@ -120,12 +136,34 @@ if __name__ == '__main__':
                     [postprocessed_outputs_squeezed[key].append(val) for val in value]
 
         for key, value in postprocessed_outputs_squeezed.items():
-            postprocessed_outputs_squeezed[key] = torch.stack(value)
+            if len(value) > 0:
+                postprocessed_outputs_squeezed[key] = torch.stack(value)
+            else:
+                postprocessed_outputs_squeezed[key] = torch.tensor([]).to(DEVICE)
 
-            
-        # for key in postprocessed_outputs[0].keys():
-        #     squeezed = [box for out in postprocessed_outputs for box in out[key]]
-        #     if len(squeezed) > 0:
-        #         postprocessed_outputs_squeezed[key] = torch.stack(squeezed)
+        postprocessed_outputs_squeezed = remove_overlaping(postprocessed_outputs_squeezed, NMS_IOU_TRESHOLD, ratio_tresh=RATIO_TRESH)
 
-        plot_results(image.numpy().transpose((1, 2, 0)), postprocessed_outputs_squeezed, additions, width, height)
+        outputs_for_comparison = AttrDict()
+        for key, value in postprocessed_outputs_squeezed.items():
+            if key == 'boxes' and len(value) > 0:
+                # value = value / torch.tensor([width, height, width, height]).to(DEVICE)
+                value = box_convert(value, 'xyxy', 'xywh')
+            outputs_for_comparison[key] = value
+            # TODO: if saving convert to cxcywh
+
+        metric.update(
+            [outputs_for_comparison],
+            [dict(
+                 boxes=inputs['labels']['boxes'].to(DEVICE),
+                 labels=inputs['labels']['class_labels'].to(DEVICE)
+            )]
+        )
+        pprint(metric.compute())
+
+        pprint(outputs_for_comparison)
+        pprint(dict(
+             boxes=inputs['labels']['boxes'].to(DEVICE) * torch.tensor([width, height, width, height]).to(DEVICE),
+             labels=inputs['labels']['class_labels'].to(DEVICE)
+        ))
+        if VERBOSE:
+            plot_results(image.numpy().transpose((1, 2, 0)), postprocessed_outputs_squeezed, additions, width, height, inputs['labels']['boxes'])

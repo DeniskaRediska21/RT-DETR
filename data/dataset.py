@@ -27,7 +27,7 @@ def plot_image(pil_img, boxes):
     colors = COLORS * 100
     H, W, _ = np.shape(pil_img)
     for (xmin, ymin, w, h), c in zip(boxes, colors):
-        ax.add_patch(plt.Rectangle((W * (xmin - w / 2), H * (ymin - h / 2)), W * w, H * h,
+        ax.add_patch(plt.Rectangle((W * (xmin), H * (ymin)), W * w, H * h,
                                    fill=False, color=c, linewidth=3))
     plt.axis('off')
     plt.show()
@@ -44,7 +44,7 @@ def format_to_coco(image_id, annotations, image_shape, num_pedestrian):
         formated.append({
             "image_id": image_id,
             "category_id": num_pedestrian,
-            "bbox": [(xmin - 0.5 * bw) * w, (ymin - 0.5 * bh) * h, bw * w, bh * h],
+            "bbox": [(xmin - bw) * w, (ymin - bh) * h, bw * w, bh * h],
             "iscrowd": 0,
             "area": bbox[2] * bbox[3],
         })
@@ -92,7 +92,7 @@ class LizaDataset(Dataset):
         if self.transforms is not None:
             bboxes = tv_tensors.BoundingBoxes(
                 [dict_['bbox'] for dict_ in formated_annotations['annotations']],
-                format="XYWH",
+                format="CXCYWH",
                 canvas_size=image.shape[-2:],
             )
             if bboxes.size()[1] != 0:
