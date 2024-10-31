@@ -59,8 +59,8 @@ if __name__ == '__main__':
 
     DEVICE = 'cuda'
 
-    # pipeline_ = get_model(mlflow_uri, project_name, model_name.split('@')[0] + '@trained')
-    pipeline_ = get_model(mlflow_uri, project_name, model_name.split('@')[0] + '@base_deta_resnet50')
+    pipeline_ = get_model(mlflow_uri, project_name, model_name.split('@')[0] + '@trained')
+    # pipeline_ = get_model(mlflow_uri, project_name, model_name.split('@')[0] + '@base_deta_resnet50')
     model, image_processor = pipeline_.model, pipeline_.image_processor
 
     image_processor.do_resize = False
@@ -116,7 +116,7 @@ if __name__ == '__main__':
         postprocessed_outputs = image_processor.post_process_object_detection(
             outputs_all,
             target_sizes=target_sizes[0],
-            threshold=0.5
+            threshold=0.1
         )
         for index, addition in enumerate(additions):
             postprocessed_outputs[index]['boxes'][:,0] += addition[1]
