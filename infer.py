@@ -37,7 +37,7 @@ def plot_results(pil_img, postprocessed_outputs, additions, width, height):
     for score, label, (xmin, ymin, xmax, ymax), c in zip(scores, labels, boxes, colors):
         ax.add_patch(plt.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
                                    fill=False, color=c, linewidth=3))
-        text = f'{model.config.id2label[int(label)]}: {score:0.5f}'
+        text = f'{model.config.id2label[int(label)]}: {score:0.2f}'
         ax.text(xmin, ymin, text, fontsize=15,
                 bbox=dict(facecolor='yellow', alpha=0.5))
     plt.axis('off')
@@ -102,7 +102,7 @@ if __name__ == '__main__':
                 postprocessed_outputs = image_processor.post_process_object_detection(
                     outputs,
                     target_sizes=[(INFERENCE_SIZE, INFERENCE_SIZE)],
-                    threshold=0.001
+                    threshold=0.1
                 )
 
                 postprocessed_outputs = postprocessed_outputs[0]
