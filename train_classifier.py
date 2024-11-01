@@ -1,4 +1,5 @@
 from tqdm import tqdm
+import torch
 from torch.utils.data import DataLoader
 from torch.optim import Adam
 import torchvision.models as models
@@ -14,8 +15,7 @@ from data.dataloader import get_train_val_dataloader
 
 from config import (
     CLASS_DATASET_PATH,
-    CLASS_IMAGE_SIZE,
-    DEVICE,
+    CLASS_DEVICE,
     CLASS_LEARNING_RATE,
     CLASS_NUM_EPOCHS,
     CLASS_BATCH_SIZE,
@@ -40,9 +40,9 @@ logging_utils.disable_logging()  # MLflow throws some excessive logging warnings
 
 
 # Training transforms
-def get_train_transform(IMAGE_SIZE, pretrained):
+def get_train_transform(CLASS_INFERENCE_SIZE, pretrained):
     train_transform = transforms.Compose([
-        transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+        transforms.Resize((CLASS_INFERENCE_SIZE, CLASS_INFERENCE_SIZE)),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
         transforms.RandomAdjustSharpness(sharpness_factor=2, p=0.5),
@@ -58,9 +58,9 @@ def get_resize_transform(INFERENCE_SIZE=CLASS_INFERENCE_SIZE):
 
 
 # Validation transforms
-def get_valid_transform(CLASS_IMAGE_SIZE, pretrained):
+def get_valid_transform(CLASS_INFERENCE_SIZE, pretrained):
     valid_transform = transforms.Compose([
-        transforms.Resize((CLASS_IMAGE_SIZE, CLASS_IMAGE_SIZE)),
+        transforms.Resize((CLASS_INFERENCE_SIZE, CLASS_INFERENCE_SIZE)),
         transforms.ToTensor(),
         normalize_transform(pretrained)
     ])
@@ -127,12 +127,13 @@ def build_model(pretrained=True, fine_tune=True, num_classes=10, n_bands=3, type
 def train(classification_model, oprimizer, criterion, dataloader: DataLoader, epoch: int, verbose: bool = True, resize_transform=None):
     progress_bar = tqdm(dataloader, total=len(dataloader), desc=' ')
     metric = MulticlassAccuracy()
-    classification_model = classification_model.to(DEVICE)
+    classification_model = classification_model.to(CLASS_DEVICE)
 
     for i, data in enumerate(progress_bar):
         images, targets = data
 
-        images = [image.to(DEVICE) for image in images]
+        images = torch.stack([image.to(CLASS_DEVICE) for image in images])
+        targets = torch.stack(targets).to(CLASS_DEVICE)
         if resize_transform is not None:
             images = resize_transform(images)
 
@@ -157,14 +158,16 @@ def train(classification_model, oprimizer, criterion, dataloader: DataLoader, ep
 def validate(classification_model, dataloader: DataLoader, epoch: int, verbose: bool = True, resize_transform=None):
     progress_bar = tqdm(dataloader, total=len(dataloader), desc=' ')
     metric = MulticlassAccuracy()
-    classification_model = classification_model.to(DEVICE)
+    classification_model = classification_model.to(CLASS_DEVICE)
     for i, data in enumerate(progress_bar):
         images, targets = data
-        images = images.to(DEVICE)
+
+        images = torch.stack([image.to(CLASS_DEVICE) for image in images])
+        targets = torch.stack(targets).to(CLASS_DEVICE)
         if resize_transform is not None:
             images = resize_transform(images)
 
-        outputs = classification_model(images.to(DEVICE))
+        outputs = classification_model(images.to(CLASS_DEVICE))
         loss = criterion(outputs, targets)
         metric.update(outputs, targets)
         accuracy = metric.compute()
@@ -181,20 +184,18 @@ if __name__ == '__main__':
     mlflow.set_experiment(PROJECT_NAME)
 
     dataset_dir = CLASS_DATASET_PATH
-    image_size = CLASS_IMAGE_SIZE
     image_dir = 'images'
     annotation_dir = 'annotations'
     annotation_bboxes_dir = 'annotations_bboxes'
 
     train_dataloader, val_dataloader = get_train_val_dataloader(
                          dataset_dir=CLASS_DATASET_PATH,
-                         image_size=CLASS_IMAGE_SIZE,
                          batch_size=CLASS_BATCH_SIZE,
                          num_workers=CLASS_NUM_WORKERS,
                          shuffle=True,
-                         transforms=get_train_transform(CLASS_IMAGE_SIZE, True),
+                         transforms=get_train_transform(CLASS_INFERENCE_SIZE, True),
                          train_size=CLASS_TRAIN_SIZE
-                         )
+     )
 
     log.info('Training...')
 
@@ -202,19 +203,18 @@ if __name__ == '__main__':
         pretrained=True,
         fine_tune=True,
         num_classes=CLASS_NUM_CLASSES,
-        n_bands=train_dataloader.dataset.dataset.bands,
+        n_bands=3,
         type=CLASS_TYPE,
     )
 
     optimizer = Adam(model.parameters(), lr=CLASS_LEARNING_RATE, weight_decay=CLASS_WEIGHT_DECAY)
     criterion = nn.CrossEntropyLoss()
+    resize_transform = get_resize_transform(INFERENCE_SIZE=CLASS_INFERENCE_SIZE)
 
     exp = None
     try:
         for epoch in range(CLASS_NUM_EPOCHS):
             log.info(f'Epoch {epoch + 1}:')
-
-            resize_transform = get_resize_transform()
 
             train(classification_model=model, oprimizer=optimizer, criterion=criterion, dataloader=train_dataloader, epoch=epoch, resize_transform=resize_transform)
             validate(classification_model=model, dataloader=val_dataloader, epoch=epoch, resize_transform=resize_transform)
@@ -224,7 +224,6 @@ if __name__ == '__main__':
     hyperparameters = {
         'epochs': epoch,
         'batch_size': CLASS_BATCH_SIZE,
-        'image_size': CLASS_IMAGE_SIZE,
         'inference_size': CLASS_INFERENCE_SIZE,
         'learning_rate': CLASS_LEARNING_RATE,
         'optimizer': 'Adam',
@@ -233,7 +232,6 @@ if __name__ == '__main__':
         'num_classes': CLASS_NUM_CLASSES,
         'dataset': CLASS_DATASET_PATH,
         'exeption': repr(exp),
-        'bands': train_dataloader.dataset.dataset.bands,
         'model_type': CLASS_TYPE,
     }
     mlflow.log_params(hyperparameters)

@@ -16,7 +16,7 @@ sys.path.append('..')
 sys.path.append('../upgreat_detector')
 sys.path.append('../RT-DETR')
 from utils import get_model
-from config import MLFLOW_URI, PROJECT_NAME, MODEL_NAME_VAL, VALIDATION_DATASET_PATH
+from config import MLFLOW_URI, PROJECT_NAME, MODEL_NAME_VAL, VALIDATION_DATASET_PATH, CLASS_DATASET_PATH
 
 
 def plot_image(pil_img, boxes):
@@ -105,7 +105,36 @@ class LizaDataset(Dataset):
         return result
 
 
+class LizaClassDataset(Dataset):
+
+    def __init__(self, dataset_path, transforms=None):
+        self.images_humans = [file for file in glob.glob(os.path.join(dataset_path, 'human', '*'), recursive=False) if re.match(r'(.*\.jpg)|(.*\.JPG)', file)]
+
+        self.images_na = [file for file in glob.glob(os.path.join(dataset_path, 'na', '*'), recursive=False) if re.match(r'(.*\.jpg)|(.*\.JPG)', file)]
+
+        self.annotations_na = list(torch.zeros(len(self.images_na), dtype=int))
+        self.annotations_humans = list(torch.ones(len(self.images_humans), dtype=int))
+
+        self.images = self.images_humans + self.images_na
+        self.annotations = self.annotations_humans + self.annotations_na
+
+        self.annotation = torch.tensor(self.annotations)
+
+        self.transforms = transforms
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        image = decode_image(self.images[idx])/255
+        target = self.annotations[idx]
+
+        return image, target
+
+
 if __name__ == "__main__":
+    dataset_class = LizaClassDataset(CLASS_DATASET_PATH)
+
     from config import DATASET_PATH
     import matplotlib.pyplot as plt
     from transforms import get_transforms

@@ -1,6 +1,6 @@
 import os
 from torch.utils.data import DataLoader, random_split
-from dataset import LizaClassDataset
+from data.dataset import LizaClassDataset
 
 
 def collate_fn(batch: list) -> tuple:
@@ -8,9 +8,9 @@ def collate_fn(batch: list) -> tuple:
     return images, classes
 
 
-def get_train_val_dataloader(dataset_dir: str, batch_size: int, num_workers: int, shuffle=True, train_size:float=0.7) -> DataLoader:
+def get_train_val_dataloader(dataset_dir: str, batch_size: int, num_workers: int, shuffle=True, train_size:float=0.7, transforms=None) -> DataLoader:
 
-    dataset = LizaClassDataset(dataset_dir)
+    dataset = LizaClassDataset(dataset_dir,transforms=transforms)
 
     train_dataset, val_dataset = random_split(dataset=dataset, lengths = (train_size, 1-train_size))
 
