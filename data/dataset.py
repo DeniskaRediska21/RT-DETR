@@ -116,7 +116,7 @@ if __name__ == "__main__":
 
     pipline = get_model(MLFLOW_URI, PROJECT_NAME, MODEL_NAME_VAL)
     model, image_processor = pipline.model, pipline.image_processor
-    dataset = LizaDataset(DATASET_PATH, image_processor=image_processor, transforms=get_transforms())
+    dataset = LizaDataset(DATASET_PATH, image_processor=image_processor, transforms=None)
     for index in range(len(dataset)):
         a = dataset.__getitem__(index)
         plot_image(a['pixel_values'].numpy().transpose((1,2,0)), a['labels']['boxes'])
