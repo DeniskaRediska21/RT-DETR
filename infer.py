@@ -25,6 +25,7 @@ from config import (
     TESTTIME_IOU_TRESH,
     DO_TESTTIME_AUGMENT,
     TESTTIME_VARIANT,
+    DO_NMS,
 )
 
 
@@ -220,7 +221,8 @@ if __name__ == '__main__':
             else:
                 postprocessed_outputs_squeezed[key] = torch.tensor([]).to(DEVICE)
 
-        postprocessed_outputs_squeezed = remove_overlaping(postprocessed_outputs_squeezed, NMS_IOU_TRESHOLD, ratio_tresh=RATIO_TRESH)
+        if DO_NMS:
+            postprocessed_outputs_squeezed = remove_overlaping(postprocessed_outputs_squeezed, NMS_IOU_TRESHOLD, ratio_tresh=RATIO_TRESH)
 
         outputs_for_comparison = AttrDict()
         for key, value in postprocessed_outputs_squeezed.items():
