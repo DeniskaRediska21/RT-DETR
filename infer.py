@@ -125,38 +125,62 @@ if __name__ == '__main__':
 
                 outputs = model(batch)
 
-                postprocessed_outputs = image_processor.post_process_object_detection(
+                postprocessed_outputs_split = image_processor.post_process_object_detection(
                     outputs,
-                    target_sizes=[(INFERENCE_SIZE, INFERENCE_SIZE)],
+                    target_sizes=[(INFERENCE_SIZE, INFERENCE_SIZE)] * len(batch),
                     threshold=TRESHOLD,
                 )
-                postprocessed_outputs = postprocessed_outputs[0]
+
+                for index, addi in enumerate(addition):
+                    if len(postprocessed_outputs_split[index]['boxes']):
+                        postprocessed_outputs_split[index]['boxes'][:,0] += addi[1]
+                        postprocessed_outputs_split[index]['boxes'][:,1] += addi[0]
+                        postprocessed_outputs_split[index]['boxes'][:,2] += addi[1]
+                        postprocessed_outputs_split[index]['boxes'][:,3] += addi[0]
+
+                postprocessed_outputs = AttrDict()
+                for key in postprocessed_outputs_split[0].keys():
+                    postprocessed_outputs[key] = torch.cat([out[key] for out in postprocessed_outputs_split])
+
+                # postprocessed_outputs = postprocessed_outputs[0]
 
                 if DO_TESTTIME_AUGMENT:
                     outputs_testtime = model(testtime_transform(batch))
 
-                    postprocessed_outputs_testtime = image_processor.post_process_object_detection(
+                    postprocessed_outputs_testtime_split = image_processor.post_process_object_detection(
                         outputs_testtime,
-                        target_sizes=[(INFERENCE_SIZE, INFERENCE_SIZE)],
+                        target_sizes=[(INFERENCE_SIZE, INFERENCE_SIZE)] * len(batch),
                         threshold=TRESHOLD,
                     )
 
-                    postprocessed_outputs_testtime = postprocessed_outputs_testtime[0]
 
-                    if len(postprocessed_outputs_testtime['boxes']):
-                        xmin = postprocessed_outputs_testtime['boxes'][:, 0]
-                        ymin = postprocessed_outputs_testtime['boxes'][:, 1]
-                        xmax = postprocessed_outputs_testtime['boxes'][:, 2]
-                        ymax = postprocessed_outputs_testtime['boxes'][:, 3]
+                    for index, addi in enumerate(addition):
+                        if len(postprocessed_outputs_testtime_split[index]['boxes']):
+                            
+                            xmin = postprocessed_outputs_testtime_split[index]['boxes'][:, 0]
+                            ymin = postprocessed_outputs_testtime_split[index]['boxes'][:, 1]
+                            xmax = postprocessed_outputs_testtime_split[index]['boxes'][:, 2]
+                            ymax = postprocessed_outputs_testtime_split[index]['boxes'][:, 3]
                     
-                        postprocessed_outputs_testtime['boxes'] = torch.stack(
-                           [
-                               INFERENCE_SIZE - xmax,
-                               INFERENCE_SIZE - ymax,
-                               INFERENCE_SIZE - xmin,
-                               INFERENCE_SIZE - ymin,
-                           ]
-                        ).T
+                            postprocessed_outputs_testtime_split[index]['boxes'] = torch.stack(
+                               [
+                                   INFERENCE_SIZE - xmax,
+                                   INFERENCE_SIZE - ymax,
+                                   INFERENCE_SIZE - xmin,
+                                   INFERENCE_SIZE - ymin,
+                               ]
+                            ).T
+
+                            postprocessed_outputs_testtime_split[index]['boxes'][:,0] += addi[1]
+                            postprocessed_outputs_testtime_split[index]['boxes'][:,1] += addi[0]
+                            postprocessed_outputs_testtime_split[index]['boxes'][:,2] += addi[1]
+                            postprocessed_outputs_testtime_split[index]['boxes'][:,3] += addi[0]
+
+                    postprocessed_outputs_testtime = AttrDict()
+                    for key in postprocessed_outputs_testtime_split[0].keys():
+                        postprocessed_outputs_testtime[key] = torch.cat([out[key] for out in postprocessed_outputs_testtime_split])
+                    # postprocessed_outputs_testtime = postprocessed_outputs_testtime[0]
+
 
                     iou = box_iou(postprocessed_outputs['boxes'], postprocessed_outputs_testtime['boxes'])
 
@@ -177,12 +201,12 @@ if __name__ == '__main__':
                                      dim=0,
                                 )
 
-                addition = addition[0]
-                if len(postprocessed_outputs['boxes']):
-                    postprocessed_outputs['boxes'][:,0] += addition[1]
-                    postprocessed_outputs['boxes'][:,1] += addition[0]
-                    postprocessed_outputs['boxes'][:,2] += addition[1]
-                    postprocessed_outputs['boxes'][:,3] += addition[0]
+                # addition = addition[0]
+                # if len(postprocessed_outputs['boxes']):
+                #     postprocessed_outputs['boxes'][:,0] += addition[1]
+                #     postprocessed_outputs['boxes'][:,1] += addition[0]
+                #     postprocessed_outputs['boxes'][:,2] += addition[1]
+                #     postprocessed_outputs['boxes'][:,3] += addition[0]
             
                 for key, value in postprocessed_outputs.items():
                     if key not in postprocessed_outputs_squeezed:
@@ -225,3 +249,5 @@ if __name__ == '__main__':
         # ))
         if VERBOSE:
             plot_results(image.numpy().transpose((1, 2, 0)), postprocessed_outputs_squeezed, additions, width, height, inputs['labels']['boxes'])
+    print('FINAL SCORE')
+    pprint(metric.compute())
