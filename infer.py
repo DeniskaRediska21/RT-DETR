@@ -23,6 +23,7 @@ from config import (
     TRESHOLD,
     TESTTIME_IOU_TRESH,
     DO_TESTTIME_AUGMENT,
+    TESTTIME_VARIANT,
 )
 
 
@@ -162,18 +163,19 @@ if __name__ == '__main__':
                     keep, _ = torch.where(iou > TESTTIME_IOU_TRESH)
 
                     # postprocessed_outputs = postprocessed_outputs_testtime
-
-                    for key, value in postprocessed_outputs.items():
-                        postprocessed_outputs[key] = value[keep]
-
-                    # for key in postprocessed_outputs.keys():
-                    #     postprocessed_outputs[key] = torch.cat(
-                    #          [
-                    #              postprocessed_outputs[key],
-                    #              postprocessed_outputs_testtime[key],
-                    #          ],
-                    #          dim = 0,
-                    #     )
+                    match TESTTIME_VARIANT:
+                        case 'strict':
+                            for key, value in postprocessed_outputs.items():
+                                postprocessed_outputs[key] = value[keep]
+                        case _:
+                            for key in postprocessed_outputs.keys():
+                                postprocessed_outputs[key] = torch.cat(
+                                     [
+                                         postprocessed_outputs[key],
+                                         postprocessed_outputs_testtime[key],
+                                     ],
+                                     dim=0,
+                                )
 
                 addition = addition[0]
                 if len(postprocessed_outputs['boxes']):
