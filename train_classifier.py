@@ -94,6 +94,12 @@ def build_model(pretrained=True, fine_tune=True, num_classes=10, n_bands=3, type
             model = models.efficientnet_b3(pretrained=pretrained)
         case 'effnet_b7':
             model = models.efficientnet_b7(pretrained=pretrained)
+        case 'effnet_s':
+            model = models.efficientnet_v2_s(pretrained=pretrained)
+        case 'effnet_m':
+            model = models.efficientnet_v2_m(pretrained=pretrained)
+        case 'effnet_l':
+            model = models.efficientnet_v2_l(pretrained=pretrained)
         case _:
             NotImplementedError(f'Model {type} not implemented')
 
