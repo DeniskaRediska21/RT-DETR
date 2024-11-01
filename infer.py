@@ -1,10 +1,11 @@
 import torch
-from torchvision.ops import box_convert
+from torchvision.ops import box_convert, box_iou
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 import matplotlib.pyplot as plt
 import numpy as np
 from utils import get_model
-from data import LizaDataset 
+from data import LizaDataset
+from data.transforms import get_testtime_transforms
 from utils.NMS import remove_overlaping
 from pprint import pprint
 from config import (
@@ -20,6 +21,8 @@ from config import (
     INFERENCE_BATCH_SIZE,
     VERBOSE,
     TRESHOLD,
+    TESTTIME_IOU_TRESH,
+    DO_TESTTIME_AUGMENT,
 )
 
 
@@ -87,6 +90,9 @@ if __name__ == '__main__':
     dataset = LizaDataset(dataset_path, image_processor=image_processor, transforms=None)
 
     model = model.to(DEVICE)
+
+    testtime_transform = get_testtime_transforms()
+
     for n_image in range(len(dataset)):
         inputs = dataset.__getitem__(n_image)
         image = inputs['pixel_values']
@@ -114,16 +120,62 @@ if __name__ == '__main__':
 
         for batch, addition in zip(batches, batched_additions):
             with torch.no_grad():
-                outputs = model(batch.to(DEVICE))
+                batch = batch.to(DEVICE)
+
+                outputs = model(batch)
+
                 postprocessed_outputs = image_processor.post_process_object_detection(
                     outputs,
                     target_sizes=[(INFERENCE_SIZE, INFERENCE_SIZE)],
                     threshold=TRESHOLD,
                 )
-
                 postprocessed_outputs = postprocessed_outputs[0]
-                addition = addition[0]
 
+                if DO_TESTTIME_AUGMENT:
+                    outputs_testtime = model(testtime_transform(batch))
+
+                    postprocessed_outputs_testtime = image_processor.post_process_object_detection(
+                        outputs_testtime,
+                        target_sizes=[(INFERENCE_SIZE, INFERENCE_SIZE)],
+                        threshold=TRESHOLD,
+                    )
+
+                    postprocessed_outputs_testtime = postprocessed_outputs_testtime[0]
+
+                    if len(postprocessed_outputs_testtime['boxes']):
+                        xmin = postprocessed_outputs_testtime['boxes'][:, 0]
+                        ymin = postprocessed_outputs_testtime['boxes'][:, 1]
+                        xmax = postprocessed_outputs_testtime['boxes'][:, 2]
+                        ymax = postprocessed_outputs_testtime['boxes'][:, 3]
+                    
+                        postprocessed_outputs_testtime['boxes'] = torch.stack(
+                           [
+                               INFERENCE_SIZE - xmax,
+                               INFERENCE_SIZE - ymax,
+                               INFERENCE_SIZE - xmin,
+                               INFERENCE_SIZE - ymin,
+                           ]
+                        ).T
+
+                    iou = box_iou(postprocessed_outputs['boxes'], postprocessed_outputs_testtime['boxes'])
+
+                    keep, _ = torch.where(iou > TESTTIME_IOU_TRESH)
+
+                    # postprocessed_outputs = postprocessed_outputs_testtime
+
+                    for key, value in postprocessed_outputs.items():
+                        postprocessed_outputs[key] = value[keep]
+
+                    # for key in postprocessed_outputs.keys():
+                    #     postprocessed_outputs[key] = torch.cat(
+                    #          [
+                    #              postprocessed_outputs[key],
+                    #              postprocessed_outputs_testtime[key],
+                    #          ],
+                    #          dim = 0,
+                    #     )
+
+                addition = addition[0]
                 if len(postprocessed_outputs['boxes']):
                     postprocessed_outputs['boxes'][:,0] += addition[1]
                     postprocessed_outputs['boxes'][:,1] += addition[0]
