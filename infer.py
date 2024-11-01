@@ -148,6 +148,8 @@ if __name__ == '__main__':
             if key == 'boxes' and len(value) > 0:
                 # value = value / torch.tensor([width, height, width, height]).to(DEVICE)
                 value = box_convert(value, 'xyxy', 'cxcywh')
+            if key == 'score' and len(value) > 0:
+                value = value * 15
             outputs_for_comparison[key] = value
             # TODO: if saving convert to cxcywh
 
