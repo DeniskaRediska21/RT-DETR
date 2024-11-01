@@ -11,3 +11,11 @@ def get_transforms():
     ])
 
     return transforms
+
+def get_testtime_transforms():
+    transforms = T.Compose([
+        T.RandomVerticalFlip(p=1),
+        T.RandomHorizontalFlip(p=1),
+    ])
+
+    return transforms
