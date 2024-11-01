@@ -4,6 +4,7 @@ from torchvision.ops import box_convert, box_iou
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 import matplotlib.pyplot as plt
 import numpy as np
+from tqdm import tqdm
 from utils import get_model
 from data import LizaDataset
 from data.transforms import get_testtime_transforms
@@ -95,8 +96,9 @@ if __name__ == '__main__':
     model = model.to(DEVICE)
 
     testtime_transform = get_testtime_transforms()
+    
 
-    for n_image in range(len(dataset)):
+    for n_image in tqdm(range(len(dataset))):
         inputs = dataset.__getitem__(n_image)
         image = inputs['pixel_values']
         _, height, width = image.size()
@@ -245,6 +247,7 @@ if __name__ == '__main__':
 
         os.system('clear')
         print(f'{n_image + 1} / {len(dataset)}')
+
         print('CURRENT MEAN SCORE:')
         pprint(metric.compute())
 
