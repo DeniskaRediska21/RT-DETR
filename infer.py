@@ -207,13 +207,15 @@ if __name__ == '__main__':
             outputs_for_comparison[key] = value
             # TODO: if saving convert to cxcywh
 
+        targets_for_comparison = dict(
+             boxes=(inputs['labels']['boxes'] * torch.tensor([width, height, width, height])).to(DEVICE),
+             labels=inputs['labels']['class_labels'].to(DEVICE)
+        )
         metric.update(
             [outputs_for_comparison],
-            [dict(
-                 boxes=inputs['labels']['boxes'].to(DEVICE),
-                 labels=inputs['labels']['class_labels'].to(DEVICE)
-            )]
+            [targets_for_comparison]
         )
+
         pprint(metric.compute())
 
         # pprint(outputs_for_comparison)
