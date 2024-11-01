@@ -1,3 +1,4 @@
+import os
 import torch
 from torchvision.ops import box_convert, box_iou
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
@@ -240,6 +241,9 @@ if __name__ == '__main__':
             [targets_for_comparison]
         )
 
+        os.system('clear')
+        print(f'{n_image + 1} / {len(dataset)}')
+        print('CURRENT MEAN SCORE:')
         pprint(metric.compute())
 
         # pprint(outputs_for_comparison)
@@ -249,5 +253,7 @@ if __name__ == '__main__':
         # ))
         if VERBOSE:
             plot_results(image.numpy().transpose((1, 2, 0)), postprocessed_outputs_squeezed, additions, width, height, inputs['labels']['boxes'])
-    print('FINAL SCORE')
+
+    os.system('clear')
+    print('FINAL SCORE:')
     pprint(metric.compute())
