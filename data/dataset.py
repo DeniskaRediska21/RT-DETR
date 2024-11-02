@@ -71,14 +71,17 @@ class LizaDataset(Dataset):
         self.transforms = transforms
         self.num_pedestrian = num_pedestrian
         self.training = training
+        # if not self.training:
+        #     sizes = [imagesize.get(image) for image in self.images]
 
     def __len__(self):
         return len(self.images)
 
     def __getitem__(self, idx):
-        im = read_file(self.images[idx])
+        image = decode_image(self.images[idx])
+        # im = read_file(self.images[idx])
+        # image = decode_jpeg(im, device=DEVICE)
 
-        image = decode_jpeg(im, device="cuda:0")
         with open(self.annotations[idx], 'r') as file:
             annotations = file.read().splitlines()
             for index in range(len(annotations)):
@@ -88,24 +91,24 @@ class LizaDataset(Dataset):
 
 
         # Apply the torchvision transforms if provided
-        if self.training:
-            if self.transforms is not None:
-                bboxes = tv_tensors.BoundingBoxes(
-                    [dict_['bbox'] for dict_ in formated_annotations['annotations']],
-                    format="XYWH",
-                    canvas_size=image.shape[-2:],
-                )
-                if bboxes.size()[1] != 0:
-                    image, out_boxes = self.transforms(image, bboxes)
+        # if self.training:
+        if self.transforms is not None:
+            bboxes = tv_tensors.BoundingBoxes(
+                [dict_['bbox'] for dict_ in formated_annotations['annotations']],
+                format="XYWH",
+                canvas_size=image.shape[-2:],
+            )
+            if bboxes.size()[1] != 0:
+                image, out_boxes = self.transforms(image, bboxes)
 
-                    for index, box in enumerate(out_boxes):
-                        formated_annotations['annotations'][index]['bbox'] = box
-                # pass
+                for index, box in enumerate(out_boxes):
+                    formated_annotations['annotations'][index]['bbox'] = box
+            # pass
 
-            result = self.image_processor(images=image, annotations=formated_annotations, return_tensors="pt")
-        else: 
-            result = {'pixel_values': (image/255).unsqueeze(0)}
-            # result = self.image_processor(images=image, return_tensors="pt")
+        result = self.image_processor(images=image, annotations=formated_annotations, return_tensors="pt")
+        # else: 
+        #     result = {'pixel_values': (image/255).unsqueeze(0).to(torch.bfloat16)}
+          # result = self.image_processor(images=image, return_tensors="pt")
             
         result = {k: v[0] for k, v in result.items()}
 

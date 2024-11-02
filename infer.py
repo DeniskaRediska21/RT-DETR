@@ -1,5 +1,6 @@
 import os
 import torch
+# import torch_tensorrt
 from torchvision.ops import box_convert, box_iou
 import torch.nn.utils.prune as prune
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
@@ -28,6 +29,7 @@ from config import (
     DO_TESTTIME_AUGMENT,
     TESTTIME_VARIANT,
     DO_NMS,
+    DEVICE,
 )
 
 
@@ -85,9 +87,8 @@ if __name__ == '__main__':
     mlflow_uri = MLFLOW_URI
     project_name = PROJECT_NAME
 
-    DEVICE = 'cuda'
 
-    pipeline_ = get_model(mlflow_uri, project_name, MODEL_NAME_VAL)
+    pipeline_ = get_model(mlflow_uri, project_name, MODEL_NAME_VAL, dtype=torch.bfloat16)
 
     model, image_processor = pipeline_.model, pipeline_.image_processor
 
@@ -100,8 +101,10 @@ if __name__ == '__main__':
 
     model = model.to(DEVICE)
     # model.qconfig = torch.ao.quantization.get_default_qconfig('x86')
+    # model = torch.compile(model,fullgraph=True)
         
-    model = torch.compile(model)
+    # model = torch.compile(model, backend='torch_tensorrt', dynamic=False)
+    model = torch.compile(model, fullgraph=True)
     # model = torch.compile(model, mode="max-autotune", fullgraph=True)
 
     testtime_transform = get_testtime_transforms()
@@ -138,6 +141,8 @@ if __name__ == '__main__':
         for batch, addition in zip(batches, batched_additions):
 
                 with torch.no_grad():
+                    batch = batch.to(DEVICE)
+                    print(batch.shape)
                     outputs = model(batch)
 
                 postprocessed_outputs_split = image_processor.post_process_object_detection(
@@ -247,14 +252,15 @@ if __name__ == '__main__':
             outputs_for_comparison[key] = value
             # TODO: if saving convert to cxcywh
 
-        # targets_for_comparison = dict(
-        #      boxes=(inputs['labels']['boxes'] * torch.tensor([width, height, width, height])).to(DEVICE),
-        #      labels=inputs['labels']['class_labels'].to(DEVICE)
-        # )
-        # metric.update(
-        #     [outputs_for_comparison],
-        #     [targets_for_comparison]
-        # )
+        targets_for_comparison = dict(
+             boxes=(inputs['labels']['boxes'] * torch.tensor([width, height, width, height])).to(DEVICE),
+             labels=inputs['labels']['class_labels'].to(DEVICE) + 1
+        )
+
+        metric.update(
+            [outputs_for_comparison],
+            [targets_for_comparison]
+        )
 
         os.system('clear')
         print(f'{n_image + 1} / {len(dataset)}')
@@ -262,11 +268,6 @@ if __name__ == '__main__':
         print('CURRENT MEAN SCORE:')
         pprint(metric.compute())
 
-        # pprint(outputs_for_comparison)
-        # pprint(dict(
-        #      boxes=inputs['labels']['boxes'].to(DEVICE) * torch.tensor([width, height, width, height]).to(DEVICE),
-        #      labels=inputs['labels']['class_labels'].to(DEVICE)
-        # ))
         if VERBOSE:
             plot_results(image.numpy().transpose((1, 2, 0)), postprocessed_outputs_squeezed, additions, width, height, inputs['labels']['boxes'])
 

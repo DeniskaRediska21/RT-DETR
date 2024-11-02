@@ -31,7 +31,7 @@ def get_path(weights_path: PathLike, model_name: str) -> Path | str:
     return mlflow_path
 
 
-def get_model(mlflow_uri, project_name, model_name):
+def get_model(mlflow_uri, project_name, model_name, **kwargs):
     """Возвращает модель на Tensorflow.
 
     Args:
@@ -44,7 +44,7 @@ def get_model(mlflow_uri, project_name, model_name):
     weights_path = Path(__file__).parent / 'models'
     local_path = Path(weights_path, model_name)
     download_model(mlflow_uri, project_name, model_name)
-    model = transformers.load_model(local_path)
+    model = transformers.load_model(local_path, **kwargs)
 
     return model
 
