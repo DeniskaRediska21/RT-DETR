@@ -13,6 +13,7 @@ import copy
 from collections import defaultdict
 sys.path.append('..')
 sys.path.append('../RT-DETR')
+sys.path.append('../upgreat_detector')
 from config import (
     MLFLOW_URI,
     PROJECT_NAME,
