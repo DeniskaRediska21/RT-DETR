@@ -1,6 +1,7 @@
 import os
 import torch
 from torchvision.ops import box_convert, box_iou
+import torch.nn.utils.prune as prune
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 import matplotlib.pyplot as plt
 import numpy as np
@@ -36,7 +37,11 @@ COLORS = [[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
 
 COLOR_VAL = [0., 1., 0.]
 
-metric = MeanAveragePrecision(box_format='xywh')
+metric = MeanAveragePrecision(
+      box_format='xywh',
+      iou_thresholds=list(np.arange(0.03, 1, 0.07, dtype=np.float32)),
+      iou_type='bbox',
+)
 
 
 def plot_results(pil_img, postprocessed_outputs, additions, width, height, target):
@@ -91,15 +96,22 @@ if __name__ == '__main__':
     image_processor.do_pad = False
 
     dataset_path = VALIDATION_DATASET_PATH
-    dataset = LizaDataset(dataset_path, image_processor=image_processor, transforms=None)
+    dataset = LizaDataset(dataset_path, image_processor=image_processor, transforms=None, training=False)
 
     model = model.to(DEVICE)
+    # model.qconfig = torch.ao.quantization.get_default_qconfig('x86')
+        
+    model = torch.compile(model)
+    # model = torch.compile(model, mode="max-autotune", fullgraph=True)
 
     testtime_transform = get_testtime_transforms()
+    quantized = False
+    pruned = False
     
 
     for n_image in tqdm(range(len(dataset))):
         inputs = dataset.__getitem__(n_image)
+
         image = inputs['pixel_values']
         _, height, width = image.size()
         step_size = int(INFERENCE_SIZE * (1 - OVERLAP))
@@ -124,10 +136,9 @@ if __name__ == '__main__':
         postprocessed_outputs_squeezed = AttrDict()
 
         for batch, addition in zip(batches, batched_additions):
-            with torch.no_grad():
-                batch = batch.to(DEVICE)
 
-                outputs = model(batch)
+                with torch.no_grad():
+                    outputs = model(batch)
 
                 postprocessed_outputs_split = image_processor.post_process_object_detection(
                     outputs,
@@ -236,14 +247,14 @@ if __name__ == '__main__':
             outputs_for_comparison[key] = value
             # TODO: if saving convert to cxcywh
 
-        targets_for_comparison = dict(
-             boxes=(inputs['labels']['boxes'] * torch.tensor([width, height, width, height])).to(DEVICE),
-             labels=inputs['labels']['class_labels'].to(DEVICE)
-        )
-        metric.update(
-            [outputs_for_comparison],
-            [targets_for_comparison]
-        )
+        # targets_for_comparison = dict(
+        #      boxes=(inputs['labels']['boxes'] * torch.tensor([width, height, width, height])).to(DEVICE),
+        #      labels=inputs['labels']['class_labels'].to(DEVICE)
+        # )
+        # metric.update(
+        #     [outputs_for_comparison],
+        #     [targets_for_comparison]
+        # )
 
         os.system('clear')
         print(f'{n_image + 1} / {len(dataset)}')

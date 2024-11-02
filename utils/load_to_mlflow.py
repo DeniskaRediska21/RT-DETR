@@ -3,7 +3,7 @@ import os
 import requests
 from pathlib import Path
 from PIL import Image
-from transformers import RTDetrForObjectDetection, RTDetrImageProcessor, AutoImageProcessor, AutoModelForObjectDetection, DetrImageProcessor, DetrForObjectDetection
+from transformers import AutoImageProcessor, AutoModelForObjectDetection
 from transformers import pipeline
 import mlflow
 from mlflow.models import infer_signature

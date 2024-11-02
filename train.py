@@ -51,6 +51,8 @@ model = model.to(DEVICE)
 
 output_dir = os.path.join("rtdetr-r50-cppe5-finetune", datetime.datetime.now().strftime("%B_%d_%Y_%H_%M_%S"))
 
+
+
 training_args = TrainingArguments(
     output_dir=output_dir,
     num_train_epochs=EPOCHS,
@@ -66,7 +68,29 @@ training_args = TrainingArguments(
     save_total_limit=2,
     remove_unused_columns=False,
     eval_do_concat_batches=False,
+    bf16=True,
+    torchdynamo='fx2trt',
+    torch_compile=True,
+    # load_best_model_at_end=True,
 )
+
+
+# training_args = TrainingArguments(
+#     output_dir=output_dir,
+#     num_train_epochs=EPOCHS,
+#     max_grad_norm=0.1,
+#     learning_rate=LEARNING_RATE,
+#     warmup_steps=300,
+#     per_device_train_batch_size=BATCH_SIZE,
+#     dataloader_num_workers=4,
+#     eval_strategy="epoch",
+#     save_strategy="steps",
+#     save_steps=500,
+#     logging_steps=100,
+#     save_total_limit=2,
+#     remove_unused_columns=False,
+#     eval_do_concat_batches=False,
+# )
 
 trainer = Trainer(
     model=model,

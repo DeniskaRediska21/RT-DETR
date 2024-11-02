@@ -8,6 +8,7 @@ from torch.utils.data import Dataset
 import imagesize
 import mlflow
 from torchvision.io import decode_image
+from torchvision.io.image import decode_jpeg, read_file
 from torchvision import tv_tensors
 from pathlib import Path
 import numpy as np
@@ -16,7 +17,7 @@ sys.path.append('..')
 sys.path.append('../upgreat_detector')
 sys.path.append('../RT-DETR')
 from utils import get_model
-from config import MLFLOW_URI, PROJECT_NAME, MODEL_NAME_VAL, VALIDATION_DATASET_PATH, CLASS_DATASET_PATH
+from config import MLFLOW_URI, PROJECT_NAME, MODEL_NAME_VAL, VALIDATION_DATASET_PATH, CLASS_DATASET_PATH, DEVICE
 
 
 def plot_image(pil_img, boxes):
@@ -56,7 +57,7 @@ def format_to_coco(image_id, annotations, image_shape, num_pedestrian):
 
 class LizaDataset(Dataset):
 
-    def __init__(self, dataset_path, image_processor, transforms=None, num_pedestrian=0):
+    def __init__(self, dataset_path, image_processor, transforms=None, num_pedestrian=0, training=True):
         self.annotations = glob.glob(os.path.join(dataset_path, '*.txt'), recursive=True)
         self.images = [file for file in glob.glob(os.path.join(dataset_path, '*'), recursive=True) if re.match(r'(.*\.jpg)|(.*\.JPG)', file)]
 
@@ -69,13 +70,15 @@ class LizaDataset(Dataset):
         self.image_processor = image_processor
         self.transforms = transforms
         self.num_pedestrian = num_pedestrian
+        self.training = training
 
     def __len__(self):
         return len(self.images)
 
     def __getitem__(self, idx):
+        im = read_file(self.images[idx])
 
-        image = decode_image(self.images[idx])
+        image = decode_jpeg(im, device="cuda:0")
         with open(self.annotations[idx], 'r') as file:
             annotations = file.read().splitlines()
             for index in range(len(annotations)):
@@ -85,21 +88,25 @@ class LizaDataset(Dataset):
 
 
         # Apply the torchvision transforms if provided
-        if self.transforms is not None:
-            bboxes = tv_tensors.BoundingBoxes(
-                [dict_['bbox'] for dict_ in formated_annotations['annotations']],
-                format="XYWH",
-                canvas_size=image.shape[-2:],
-            )
-            if bboxes.size()[1] != 0:
-                image, out_boxes = self.transforms(image, bboxes)
+        if self.training:
+            if self.transforms is not None:
+                bboxes = tv_tensors.BoundingBoxes(
+                    [dict_['bbox'] for dict_ in formated_annotations['annotations']],
+                    format="XYWH",
+                    canvas_size=image.shape[-2:],
+                )
+                if bboxes.size()[1] != 0:
+                    image, out_boxes = self.transforms(image, bboxes)
 
-                for index, box in enumerate(out_boxes):
-                    formated_annotations['annotations'][index]['bbox'] = box
-            # pass
+                    for index, box in enumerate(out_boxes):
+                        formated_annotations['annotations'][index]['bbox'] = box
+                # pass
 
-        result = self.image_processor(images=image, annotations=formated_annotations, return_tensors="pt")
-        # Image processor expands batch dimension, lets squeeze it
+            result = self.image_processor(images=image, annotations=formated_annotations, return_tensors="pt")
+        else: 
+            result = {'pixel_values': (image/255).unsqueeze(0)}
+            # result = self.image_processor(images=image, return_tensors="pt")
+            
         result = {k: v[0] for k, v in result.items()}
 
         return result
@@ -110,7 +117,7 @@ class LizaClassDataset(Dataset):
     def __init__(self, dataset_path, transforms=None):
         self.images_humans = [file for file in glob.glob(os.path.join(dataset_path, 'human', '*'), recursive=False) if re.match(r'(.*\.jpg)|(.*\.JPG)', file)]
 
-        self.images_na = [file for file in glob.glob(os.path.join(dataset_path, 'na', '*'), recursive=False) if re.match(r'(.*\.jpg)|(.*\.JPG)', file)]
+        self.images_na = [file for file in glob.glob(os.path.join(dataset_path, 'not-human', '*'), recursive=False) if re.match(r'(.*\.jpg)|(.*\.JPG)', file)]
 
         self.annotations_na = list(torch.zeros(len(self.images_na), dtype=int))
         self.annotations_humans = list(torch.ones(len(self.images_humans), dtype=int))
