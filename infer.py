@@ -7,15 +7,16 @@ from torchmetrics.detection.mean_ap import MeanAveragePrecision
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
-from utils import get_model
+from utils import get_transformers_model, get_pytorch_model
 from data import LizaDataset
 from data.transforms import get_testtime_transforms
-from utils.NMS import remove_overlaping
+from utils.NMS import remove_overlaping, reclassify
 from pprint import pprint
 from config import (
     MLFLOW_URI,
     PROJECT_NAME,
     MODEL_NAME_VAL,
+    CLASSIFIER_NAME,
     DATASET_PATH,
     VALIDATION_DATASET_PATH,
     INFERENCE_SIZE,
@@ -88,9 +89,10 @@ if __name__ == '__main__':
     project_name = PROJECT_NAME
 
 
-    pipeline_ = get_model(mlflow_uri, project_name, MODEL_NAME_VAL, dtype=torch.bfloat16)
-
+    pipeline_ = get_transformers_model(mlflow_uri, project_name, MODEL_NAME_VAL)
     model, image_processor = pipeline_.model, pipeline_.image_processor
+    
+    classifier = get_pytorch_model(mlflow_uri, project_name, CLASSIFIER_NAME, map_location=DEVICE, weights_only=False)
 
     image_processor.do_resize = False
     image_processor.do_normalize = False
@@ -104,7 +106,7 @@ if __name__ == '__main__':
     # model = torch.compile(model,fullgraph=True)
         
     # model = torch.compile(model, backend='torch_tensorrt', dynamic=False)
-    model = torch.compile(model, fullgraph=True)
+    # model = torch.compile(model, fullgraph=True)
     # model = torch.compile(model, mode="max-autotune", fullgraph=True)
 
     testtime_transform = get_testtime_transforms()
@@ -142,7 +144,6 @@ if __name__ == '__main__':
 
                 with torch.no_grad():
                     batch = batch.to(DEVICE)
-                    print(batch.shape)
                     outputs = model(batch)
 
                 postprocessed_outputs_split = image_processor.post_process_object_detection(
@@ -239,9 +240,10 @@ if __name__ == '__main__':
             else:
                 postprocessed_outputs_squeezed[key] = torch.tensor([]).to(DEVICE)
 
+        postprocessed_outputs = reclassify(classifier, image, postprocessed_outputs_squeezed)
         if DO_NMS:
             postprocessed_outputs_squeezed = remove_overlaping(postprocessed_outputs_squeezed, NMS_IOU_TRESHOLD, ratio_tresh=RATIO_TRESH)
-
+            
         outputs_for_comparison = AttrDict()
         for key, value in postprocessed_outputs_squeezed.items():
             if key == 'boxes' and len(value) > 0:
@@ -255,6 +257,7 @@ if __name__ == '__main__':
         targets_for_comparison = dict(
              boxes=(inputs['labels']['boxes'] * torch.tensor([width, height, width, height])).to(DEVICE),
              labels=inputs['labels']['class_labels'].to(DEVICE) + 1
+            #  labels=inputs['labels']['class_labels'].to(DEVICE)
         )
 
         metric.update(
