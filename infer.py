@@ -22,7 +22,7 @@ from config import (
     OVERLAP,
     NMS_IOU_TRESHOLD,
     RATIO_TRESH,
-    INFERENCE_BATCH_SIZE,
+    INFERENCE_BATCH_SIZES,
     VERBOSE,
     TRESHOLD,
     TESTTIME_IOU_TRESH,
@@ -104,7 +104,17 @@ if __name__ == '__main__':
     # model = torch.compile(model,fullgraph=True)
         
     # model = torch.compile(model, backend='torch_tensorrt', dynamic=False)
-    model = torch.compile(model, fullgraph=True)
+    import torch_tensorrt
+    model = torch.compile(model, backend='torch_tensorrt',dynamic=False,
+        options={
+            "truncate_long_and_double": True,
+             # "precision": torch.half,
+             # "min_block_size": 2,
+             # "torch_executed_ops": {"torch.ops.aten.sub.Tensor"},
+             # "optimization_level": 5,
+             "use_python_runtime": False,
+         }
+     )
     # model = torch.compile(model, mode="max-autotune", fullgraph=True)
 
     testtime_transform = get_testtime_transforms()
@@ -131,9 +141,18 @@ if __name__ == '__main__':
         additions = torch.tensor([(ymin, xmin) for ymin in h_range for xmin in w_range])
 
         subs = torch.stack(subs)
-        batch_size = INFERENCE_BATCH_SIZE
-        batches = torch.split(subs, batch_size)
-        batched_additions = torch.split(additions, batch_size)
+        # batch_size = INFERENCE_BATCH_SIZE
+        len_subs = len(subs)
+        batch_sizes = []
+        for infer_size in INFERENCE_BATCH_SIZES:
+            if len_subs > 0:
+                div = len_subs // infer_size
+                batch_sizes += [infer_size] * div
+                len_subs -= div * infer_size
+        
+        # batch_sizes = [INFERENCE_BATCH_SIZE] * (len(subs) // INFERENCE_BATCH_SIZE) + len(subs)% INFERENCE_BATCH_SIZE * [1]
+        batches = torch.split(subs, batch_sizes)
+        batched_additions = torch.split(additions, batch_sizes)
 
         outputs_all = AttrDict()
         postprocessed_outputs_squeezed = AttrDict()
