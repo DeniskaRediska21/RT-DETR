@@ -30,6 +30,7 @@ from config import (
     TESTTIME_VARIANT,
     DO_NMS,
     DEVICE,
+    DO_COMPILE,
 )
 
 
@@ -100,22 +101,18 @@ if __name__ == '__main__':
     dataset = LizaDataset(dataset_path, image_processor=image_processor, transforms=None, training=False)
 
     model = model.to(DEVICE)
-    # model.qconfig = torch.ao.quantization.get_default_qconfig('x86')
-    # model = torch.compile(model,fullgraph=True)
-        
-    # model = torch.compile(model, backend='torch_tensorrt', dynamic=False)
-    import torch_tensorrt
-    model = torch.compile(model, backend='torch_tensorrt',dynamic=False,
-        options={
-            "truncate_long_and_double": True,
-             # "precision": torch.half,
-             # "min_block_size": 2,
-             # "torch_executed_ops": {"torch.ops.aten.sub.Tensor"},
-             # "optimization_level": 5,
-             "use_python_runtime": False,
-         }
-     )
-    # model = torch.compile(model, mode="max-autotune", fullgraph=True)
+    if DO_COMPILE:
+        import torch_tensorrt
+        model = torch.compile(model, backend='torch_tensorrt',dynamic=False,
+            options={
+                "truncate_long_and_double": True,
+                 # "precision": torch.half,
+                 # "min_block_size": 2,
+                 # "torch_executed_ops": {"torch.ops.aten.sub.Tensor"},
+                 # "optimization_level": 5,
+                 "use_python_runtime": False,
+             }
+         )
 
     testtime_transform = get_testtime_transforms()
     quantized = False
