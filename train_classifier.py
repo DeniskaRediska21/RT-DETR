@@ -140,11 +140,11 @@ def train(classification_model, oprimizer, criterion, dataloader: DataLoader, ep
 
     for i, data in enumerate(progress_bar):
         images, targets = data
+        if resize_transform is not None:
+            images = [resize_transform(image) for image in images]
 
         images = torch.stack([image.to(CLASS_DEVICE) for image in images])
         targets = torch.stack(targets).to(CLASS_DEVICE)
-        if resize_transform is not None:
-            images = resize_transform(images)
 
         optimizer.zero_grad()
 
@@ -170,11 +170,11 @@ def validate(classification_model, dataloader: DataLoader, epoch: int, verbose: 
     classification_model = classification_model.to(CLASS_DEVICE)
     for i, data in enumerate(progress_bar):
         images, targets = data
+        if resize_transform is not None:
+            images = [resize_transform(image) for image in images]
 
         images = torch.stack([image.to(CLASS_DEVICE) for image in images])
         targets = torch.stack(targets).to(CLASS_DEVICE)
-        if resize_transform is not None:
-            images = resize_transform(images)
 
         outputs = classification_model(images.to(CLASS_DEVICE))
         loss = criterion(outputs, targets)
