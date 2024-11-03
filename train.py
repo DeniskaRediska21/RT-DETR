@@ -4,7 +4,7 @@ import datetime
 # from transformers import RTDetrForObjectDetection, RTDetrImageProcessor, pipeline
 import mlflow
 import numpy as np
-from utils import get_model
+from utils import get_transformers_model
 from transformers import TrainingArguments
 from data import LizaDataset, get_transforms
 from transformers import Trainer
@@ -34,7 +34,7 @@ lengths = DATASET_SIZES
 
 DEVICE = 'cuda'
 
-pipeline_ = get_model(mlflow_uri, project_name, model_name)
+pipeline_ = get_transformers_model(mlflow_uri, project_name, model_name)
 model, image_processor = pipeline_.model, pipeline_.image_processor
 
 image_processor.do_resize = False

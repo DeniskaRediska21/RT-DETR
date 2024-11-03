@@ -8,9 +8,9 @@ def collate_fn(batch: list) -> tuple:
     return images, classes
 
 
-def get_train_val_dataloader(dataset_dir: str, batch_size: int, num_workers: int, shuffle=True, train_size:float=0.7, transforms=None) -> DataLoader:
+def get_train_val_dataloader(dataset_dir: str, batch_size: int, num_workers: int, shuffle=True, train_size:float=0.7, transforms=None, image_processor=None) -> DataLoader:
 
-    dataset = LizaClassDataset(dataset_dir,transforms=transforms)
+    dataset = LizaClassDataset(dataset_dir,transforms=transforms, image_processor=image_processor)
 
     train_dataset, val_dataset = random_split(dataset=dataset, lengths = (train_size, 1-train_size))
 

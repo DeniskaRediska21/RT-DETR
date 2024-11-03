@@ -16,7 +16,7 @@ import sys
 sys.path.append('..')
 sys.path.append('../upgreat_detector')
 sys.path.append('../RT-DETR')
-from utils import get_model
+from utils import get_transformers_model
 from config import MLFLOW_URI, PROJECT_NAME, MODEL_NAME_VAL, VALIDATION_DATASET_PATH, CLASS_DATASET_PATH, DEVICE
 
 
@@ -58,8 +58,8 @@ def format_to_coco(image_id, annotations, image_shape, num_pedestrian):
 class LizaDataset(Dataset):
 
     def __init__(self, dataset_path, image_processor, transforms=None, num_pedestrian=0, training=True):
-        self.annotations = glob.glob(os.path.join(dataset_path, '*.txt'), recursive=True)
-        self.images = [file for file in glob.glob(os.path.join(dataset_path, '*'), recursive=True) if re.match(r'(.*\.jpg)|(.*\.JPG)', file)]
+        self.annotations = [file for file in glob.glob(os.path.join(dataset_path, '**'), recursive=True) if re.match(r'(.*\.txt)', file)]
+        self.images = [file for file in glob.glob(os.path.join(dataset_path, '**'), recursive=True) if re.match(r'(.*\.jpg)|(.*\.JPG)', file)]
 
         self.images = natsorted(self.images)
         self.annotations = natsorted(self.annotations)
@@ -117,7 +117,7 @@ class LizaDataset(Dataset):
 
 class LizaClassDataset(Dataset):
 
-    def __init__(self, dataset_path, transforms=None):
+    def __init__(self, dataset_path, image_processor, transforms=None):
         self.images_humans = [file for file in glob.glob(os.path.join(dataset_path, 'human', '*'), recursive=False) if re.match(r'(.*\.jpg)|(.*\.JPG)', file)]
 
         self.images_na = [file for file in glob.glob(os.path.join(dataset_path, 'not-human', '*'), recursive=False) if re.match(r'(.*\.jpg)|(.*\.JPG)', file)]
@@ -131,12 +131,14 @@ class LizaClassDataset(Dataset):
         self.annotation = torch.tensor(self.annotations)
 
         self.transforms = transforms
+        self.image_processor = image_processor
 
     def __len__(self):
         return len(self.images)
 
     def __getitem__(self, idx):
-        image = decode_image(self.images[idx])/255
+        image = decode_image(self.images[idx])
+        image = self.image_processor(image, return_tensors='pt')['pixel_values'][0]
         target = self.annotations[idx]
 
         return image, target
