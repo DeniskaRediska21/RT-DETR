@@ -86,7 +86,6 @@ def load_to_mlflow(PATH, do_trim=False):
         model_name,
         registered_model_name=model_name,
         signature=signature_DETR,
-        torch_dtype=torch.bfloat16,
     )
 
     # results = image_processor.post_process_object_detection(outputs,
