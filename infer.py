@@ -39,15 +39,13 @@ from config import (
 )
 
 class UpgreatMetric():
-    def __init__(self, iou_min=0.05, iou_max=1., iou_step=0.05, beta=1., gamma=0.15, tn=2., ignore=None):
+    def __init__(self, iou_min=0.5, iou_max=1., iou_step=0.05, beta=1., gamma=0.15, tn=2., ignore=None):
         self.mean_time_score = []
-        self.mean_fbetta_score = []
         self.mean_score = 0
         self.beta = beta
         self.gamma = gamma
         self.tn = tn
-        self.iou_tresholds = list(np.arange(0.03, 1, 0.07, dtype=np.float32))
-        self.initialised = False
+        self.iou_tresholds = list(np.arange(iou_min, iou_max, iou_step, dtype=np.float32))
         self.ignore = ignore
         self.TP = []
         self.FN = []
@@ -112,7 +110,7 @@ class UpgreatMetric():
 
         self.mean_score = (1 + np.mean(self.mean_time_score)) * F_beta
 
-        return self.mean_score
+        return self.mean_score, np.mean(self.mean_time_score), F_beta
 
 
 COLORS = [[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
@@ -120,11 +118,11 @@ COLORS = [[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
 
 COLOR_VAL = [0., 1., 0.]
 
-metric_2 = UpgreatMetric(iou_min=0.03, iou_max=1., iou_step=0.07, beta=1., gamma=0.15, tn=2., ignore=[0])
+metric_2 = UpgreatMetric(iou_min=0.3, iou_max=1, iou_step=0.07, beta=1., gamma=0.15, tn=2., ignore=[0])
 
 metric = MeanAveragePrecision(
       box_format='xywh',
-      iou_thresholds=list(np.arange(0.03, 1, 0.07, dtype=np.float32)),
+      iou_thresholds=list(np.arange(0.3, 1, 0.07, dtype=np.float32)),
       iou_type='bbox',
 )
 
@@ -370,12 +368,14 @@ if __name__ == '__main__':
 
         elapsed_time = time.time() - t0
 
-        score = metric_2.update(outputs_for_comparison, targets_for_comparison, elapsed_time)
+        score, time_score, fbeta = metric_2.update(outputs_for_comparison, targets_for_comparison, elapsed_time)
 
-        os.system('clear')
+        # os.system('clear')
         print(f'{n_image + 1} / {len(dataset)}')
         print('CURRENT MEAN SCORE:')
         print(f'Upgreat score: {score}')
+        print(f'Upgreat fbeta: {fbeta}')
+        print(f'Upgreat time score: {1 + time_score}')
         pprint(metric.compute())
 
         if VERBOSE:
