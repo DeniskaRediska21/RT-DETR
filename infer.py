@@ -1,4 +1,7 @@
 import os
+import time
+import copy
+from torchmetrics.functional import fbeta_score
 import torch
 # import torch_tensorrt
 from torchvision.ops import box_convert, box_iou
@@ -35,12 +38,89 @@ from config import (
     DO_COMPILE,
 )
 
+class UpgreatMetric():
+    def __init__(self, iou_min=0.05, iou_max=1., iou_step=0.05, beta=1., gamma=0.15, tn=2., ignore=None):
+        self.mean_time_score = []
+        self.mean_fbetta_score = []
+        self.mean_score = 0
+        self.beta = beta
+        self.gamma = gamma
+        self.tn = tn
+        self.iou_tresholds = list(np.arange(0.03, 1, 0.07, dtype=np.float32))
+        self.initialised = False
+        self.ignore = ignore
+        self.TP = []
+        self.FN = []
+        self.FP = []
 
-# colors for visualization
+    def update(self, outputs, targets, elapsed_time):
+        if len(outputs) > 0:
+            keep = torch.tensor([index for index, label in enumerate(outputs['labels']) if label not in self.ignore])
+            for key, value in outputs.items():
+                if len(keep) > 0:
+                    outputs[key] = value[keep]
+                else:
+                    outputs[key] = torch.tensor([])
+            n_predictions = len(outputs['boxes'])
+        else:
+            n_predictions = 0
+
+        n_targets = len(targets['boxes'])
+
+        if len(outputs) and len(outputs['boxes']) > 0 and len(targets['boxes']) > 0:
+            iou = box_iou(
+                box_convert(outputs['boxes'], 'xywh', 'xyxy'),
+                box_convert(targets['boxes'], 'xywh', 'xyxy')
+            ) # NxM N-outputs, M-targets
+            F_beta = []
+
+            for current_treshold in self.iou_tresholds:
+                iou_copy = copy.deepcopy(iou)
+                # rows, columns = iou_copy.shape
+                TP = 0
+                for _ in range(n_targets):
+                    max_ = torch.max(iou_copy)
+                    if max_ >= current_treshold:
+                        max_r, max_c = np.unravel_index(torch.argmax(iou_copy).cpu(), iou_copy.shape)
+                        TP += 1
+                        # rows -=1
+                        # columns -=1
+                        iou_copy[max_r, :] = 0
+                        iou_copy[:, max_c] = 0
+                FN = n_targets - TP
+                FP = n_predictions - TP
+                self.TP.append(TP)
+                self.FP.append(FP)
+                self.FN.append(FN)
+
+        else:
+            for current_treshold in self.iou_tresholds:
+                TP = 0
+                FN = max(0, n_targets - n_predictions)
+                FP = max(0, n_predictions - n_targets)
+                self.TP.append(TP)
+                self.FP.append(FP)
+                self.FN.append(FN)
+
+
+        F_beta = ((1 + self.beta**2) * np.sum(self.TP)) / ((1 + self.beta**2) * np.sum(self.TP) + np.sum(self.FP) + np.sum(self.FN) * self.beta**2)
+
+        time_score = self.gamma * (max(0, self.tn - elapsed_time)/self.tn)
+
+        self.mean_time_score.append(time_score)
+        self.mean_fbetta_score = F_beta
+
+        self.mean_score = (1 + np.mean(self.mean_time_score)) * F_beta
+
+        return self.mean_score
+
+
 COLORS = [[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
           [0.494, 0.184, 0.556], [0.466, 0.674, 0.188], [0.301, 0.745, 0.933]]
 
 COLOR_VAL = [0., 1., 0.]
+
+metric_2 = UpgreatMetric(iou_min=0.03, iou_max=1., iou_step=0.07, beta=1., gamma=0.15, tn=2., ignore=[0])
 
 metric = MeanAveragePrecision(
       box_format='xywh',
@@ -126,6 +206,7 @@ if __name__ == '__main__':
     
 
     for n_image in tqdm(range(len(dataset))):
+        t0 = time.time()
         inputs = dataset.__getitem__(n_image)
 
         image = inputs['pixel_values']
@@ -286,10 +367,15 @@ if __name__ == '__main__':
                 [targets_for_comparison]
             )
 
+
+        elapsed_time = time.time() - t0
+
+        score = metric_2.update(outputs_for_comparison, targets_for_comparison, elapsed_time)
+
         os.system('clear')
         print(f'{n_image + 1} / {len(dataset)}')
-
         print('CURRENT MEAN SCORE:')
+        print(f'Upgreat score: {score}')
         pprint(metric.compute())
 
         if VERBOSE:
