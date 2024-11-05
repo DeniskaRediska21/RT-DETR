@@ -2,7 +2,6 @@ import os
 import time
 import copy
 import torch
-# import torch_tensorrt
 from torchvision.ops import box_convert, box_iou
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 import matplotlib.pyplot as plt
@@ -187,7 +186,7 @@ if __name__ == '__main__':
 
         inputs=torch.randn((1, 3, INFERENCE_SIZE,INFERENCE_SIZE), dtype=torch.float32).to(DEVICE)
 
-        torch._dynamo.mark_dynamic(inputs, 0, min=np.min(INFERENCE_BATCH_SIZES), max=np.max(INFERENCE_BATCH_SIZES))
+        # torch._dynamo.mark_dynamic(inputs, 0, min=np.min(INFERENCE_BATCH_SIZES), max=np.max(INFERENCE_BATCH_SIZES))
 
         model = torch.compile(
             model,
@@ -350,10 +349,11 @@ if __name__ == '__main__':
             else:
                 postprocessed_outputs_squeezed[key] = torch.tensor([]).to(DEVICE)
 
-        if DO_CLASSIFY:
-            postprocessed_outputs_squeezed = reclassify(classifier, image, postprocessed_outputs_squeezed)
         if DO_NMS:
             postprocessed_outputs_squeezed = remove_overlaping(postprocessed_outputs_squeezed, NMS_IOU_TRESHOLD, ratio_tresh=RATIO_TRESH)
+
+        if DO_CLASSIFY:
+            postprocessed_outputs_squeezed = reclassify(classifier, image, postprocessed_outputs_squeezed)
             
         outputs_for_comparison = AttrDict()
         if postprocessed_outputs_squeezed:

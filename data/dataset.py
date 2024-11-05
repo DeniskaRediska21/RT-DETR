@@ -9,7 +9,6 @@ import imagesize
 import mlflow
 from torchvision.io import decode_image
 from torchvision.io.image import decode_jpeg, read_file
-from torchvision import tv_tensors
 from pathlib import Path
 import numpy as np
 import sys
@@ -78,9 +77,9 @@ class LizaDataset(Dataset):
         return len(self.images)
 
     def __getitem__(self, idx):
-        image = decode_image(self.images[idx])
-        # im = read_file(self.images[idx])
-        # image = decode_jpeg(im, device=DEVICE)
+        # image = decode_image(self.images[idx])
+        im = read_file(self.images[idx])
+        image = decode_jpeg(im, device='cpu')
 
         with open(self.annotations[idx], 'r') as file:
             annotations = file.read().splitlines()
@@ -93,10 +92,8 @@ class LizaDataset(Dataset):
         # Apply the torchvision transforms if provided
         # if self.training:
         if self.transforms is not None:
-            bboxes = tv_tensors.BoundingBoxes(
+            bboxes = torch.tensor(
                 [dict_['bbox'] for dict_ in formated_annotations['annotations']],
-                format="XYWH",
-                canvas_size=image.shape[-2:],
             )
             if bboxes.size()[1] != 0:
                 image, out_boxes = self.transforms(image, bboxes)
@@ -137,7 +134,8 @@ class LizaClassDataset(Dataset):
         return len(self.images)
 
     def __getitem__(self, idx):
-        image = decode_image(self.images[idx])
+        im = read_file(self.images[idx])
+        image = decode_jpeg(im, device='cpu')
         image = self.image_processor(image, return_tensors='pt')['pixel_values'][0]
         target = self.annotations[idx]
 

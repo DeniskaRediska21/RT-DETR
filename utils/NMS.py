@@ -9,7 +9,7 @@ sys.path.append('..')
 sys.path.append('../upgreat_detector')
 sys.path.append('../RT-DETR')
 from config import CLASS_INFERENCE_SIZE, CLASS_BATCH_SIZE, CLASS_DEVICE
-from train_classifier import get_valid_transform
+from utils.classifier_transforms import get_valid_transform
 
 def delete(arr: torch.Tensor, indexes: int) -> torch.Tensor:
     return torch.stack([x for index, x in enumerate(arr) if index not in indexes])
