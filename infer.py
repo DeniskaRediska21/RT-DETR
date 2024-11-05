@@ -1,11 +1,9 @@
 import os
 import time
 import copy
-from torchmetrics.functional import fbeta_score
 import torch
 # import torch_tensorrt
 from torchvision.ops import box_convert, box_iou
-import torch.nn.utils.prune as prune
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,7 +12,6 @@ from utils import get_transformers_model, get_pytorch_model
 from data import LizaDataset
 from data.transforms import get_testtime_transforms
 from utils.NMS import remove_overlaping, reclassify
-from pprint import pprint
 from config import (
     MLFLOW_URI,
     DO_CLASSIFY,
@@ -186,17 +183,40 @@ if __name__ == '__main__':
 
     model = model.to(DEVICE)
     if DO_COMPILE:
-        import torch_tensorrt
-        model = torch.compile(model, backend='torch_tensorrt',dynamic=False,
-            options={
-                "truncate_long_and_double": True,
-                 # "precision": torch.half,
-                 # "min_block_size": 2,
-                 # "torch_executed_ops": {"torch.ops.aten.sub.Tensor"},
-                 # "optimization_level": 5,
-                 "use_python_runtime": False,
-             }
-         )
+        # import torch_tensorrt
+
+        inputs=torch.randn((1, 3, INFERENCE_SIZE,INFERENCE_SIZE), dtype=torch.float32).to(DEVICE)
+
+        torch._dynamo.mark_dynamic(inputs, 0, min=np.min(INFERENCE_BATCH_SIZES), max=np.max(INFERENCE_BATCH_SIZES))
+
+        model = torch.compile(
+            model,
+            # backend='torch_tensorrt',
+        )
+
+        # inputs = [torch_tensorrt.Input(
+        #     min_shape=(1, 3, INFERENCE_SIZE, INFERENCE_SIZE),
+        #     opt_shape=(12, 3, INFERENCE_SIZE, INFERENCE_SIZE),
+        #     max_shape=(12, 3, INFERENCE_SIZE, INFERENCE_SIZE),
+        # )]
+        # model.model = torch_tensorrt.compile(
+        #     model.model.eval(),
+        #     inputs=inputs,
+        # )
+
+        # from torch.export import Dim, export
+        # inputs=(
+        #     torch.randn((12, 3, INFERENCE_SIZE,INFERENCE_SIZE), dtype=torch.float32).to(DEVICE),
+        # )
+
+        # batch = torch.export.Dim("batch", min = 1, max = 12)
+        # dynamic_shapes = {"pixel_values": {0: batch}}
+        # exported: torch.export.ExportedProgram = export(
+        #     model, args=inputs, dynamic_shapes=dynamic_shapes,
+        # )
+        # model = exported.module()
+        
+        
 
     testtime_transform = get_testtime_transforms()
     quantized = False
@@ -226,13 +246,12 @@ if __name__ == '__main__':
         # batch_size = INFERENCE_BATCH_SIZE
         len_subs = len(subs)
         batch_sizes = []
-        for infer_size in INFERENCE_BATCH_SIZES:
+        for infer_size in sorted(INFERENCE_BATCH_SIZES, reverse=True):
             if len_subs > 0:
                 div = len_subs // infer_size
                 batch_sizes += [infer_size] * div
                 len_subs -= div * infer_size
-        
-        # batch_sizes = [INFERENCE_BATCH_SIZE] * (len(subs) // INFERENCE_BATCH_SIZE) + len(subs)% INFERENCE_BATCH_SIZE * [1]
+
         batches = torch.split(subs, batch_sizes)
         batched_additions = torch.split(additions, batch_sizes)
 
@@ -240,7 +259,6 @@ if __name__ == '__main__':
         postprocessed_outputs_squeezed = AttrDict()
 
         for batch, addition in zip(batches, batched_additions):
-
                 with torch.no_grad():
                     batch = batch.to(DEVICE)
                     outputs = model(batch)
@@ -321,13 +339,6 @@ if __name__ == '__main__':
                                      dim=0,
                                 )
 
-                # addition = addition[0]
-                # if len(postprocessed_outputs['boxes']):
-                #     postprocessed_outputs['boxes'][:,0] += addition[1]
-                #     postprocessed_outputs['boxes'][:,1] += addition[0]
-                #     postprocessed_outputs['boxes'][:,2] += addition[1]
-                #     postprocessed_outputs['boxes'][:,3] += addition[0]
-            
                 for key, value in postprocessed_outputs.items():
                     if key not in postprocessed_outputs_squeezed:
                         postprocessed_outputs_squeezed[key] = []
@@ -349,38 +360,41 @@ if __name__ == '__main__':
             for key, value in postprocessed_outputs_squeezed.items():
                 if key == 'boxes' and len(value) > 0:
                     # value = value / torch.tensor([width, height, width, height]).to(DEVICE)
-                    value = box_convert(value, 'xyxy', 'cxcywh')
-                if key == 'score' and len(value) > 0:
-                    value = value * 15
+                    value = box_convert(value, 'xyxy', 'cxcywh') / torch.tensor([width, height, width, height]).to(DEVICE)
                 outputs_for_comparison[key] = value
-                # TODO: if saving convert to cxcywh
+        else:
+            outputs_for_comparison['boxes'] = torch.tensor([])
+            outputs_for_comparison['labels'] = torch.tensor([])
+            outputs_for_comparison['scores'] = torch.tensor([])
 
-            targets_for_comparison = dict(
-                 boxes=(inputs['labels']['boxes'] * torch.tensor([width, height, width, height])).to(DEVICE),
-                 labels=inputs['labels']['class_labels'].to(DEVICE) + 1
-            )
+        targets_for_comparison = dict(
+             boxes=(inputs['labels']['boxes']).to(DEVICE),
+             labels=inputs['labels']['class_labels'].to(DEVICE) + 1
+        )
 
-            metric.update(
-                [outputs_for_comparison],
-                [targets_for_comparison]
-            )
-
+        # metric.update(
+        #     [outputs_for_comparison],
+        #     [targets_for_comparison]
+        # )
 
         elapsed_time = time.time() - t0
 
         score, time_score, fbeta = metric_2.update(outputs_for_comparison, targets_for_comparison, elapsed_time)
 
-        # os.system('clear')
+        os.system('clear')
         print(f'{n_image + 1} / {len(dataset)}')
         print('CURRENT MEAN SCORE:')
         print(f'Upgreat score: {score}')
         print(f'Upgreat fbeta: {fbeta}')
         print(f'Upgreat time score: {1 + time_score}')
-        pprint(metric.compute())
+        # pprint(metric.compute())
 
         if VERBOSE:
             plot_results(image.numpy().transpose((1, 2, 0)), postprocessed_outputs_squeezed, additions, width, height, inputs['labels']['boxes'])
 
     os.system('clear')
     print('FINAL SCORE:')
-    pprint(metric.compute())
+    print(f'Upgreat score: {score}')
+    print(f'Upgreat fbeta: {fbeta}')
+    print(f'Upgreat time score: {1 + time_score}')
+    # pprint(metric.compute())
