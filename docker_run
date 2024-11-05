@@ -1,0 +1,1 @@
+sudo docker run --runtime nvidia -v /home/ubuntu/LIZA/upgreat_detector/:/home/code -v /home/ubuntu/LIZA/LIZA_dataset/val:/home/code/dataset -it --rm --network=host dustynv/vllm:0.6.3-r36.4.0
